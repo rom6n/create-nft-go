@@ -5,11 +5,13 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/rom6n/create-nft-go/internal/database/nosql"
+	"github.com/rom6n/create-nft-go/internal/ports/http/api"
 	"github.com/rom6n/create-nft-go/internal/ports/http/handler"
 )
 
 func main() {
 	mongoClient := nosql.NewMongoClient()
+	tonApiClient := api.NewTonApiClient()
 
 	app := fiber.New(fiber.Config{
 		JSONEncoder: json.Marshal,
@@ -31,9 +33,9 @@ func main() {
 		return c.SendString("pong")
 	})
 
-	api.Get("/get-wallet-data", handler.GetWalletData(mongoClient))
+	api.Get("/get-wallet-data", handler.GetWalletData(mongoClient, tonApiClient))
 
-	api.Put("/update-wallet-data", handler.UpdateWalletData(mongoClient))
+	api.Get("/update-wallet-nft-items", handler.UpdateWalletNftItems(mongoClient, tonApiClient)) // В будущем поменять на PUT
 
 	app.Listen(":2000")
 }

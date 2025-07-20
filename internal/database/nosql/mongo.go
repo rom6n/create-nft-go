@@ -2,6 +2,7 @@ package nosql
 
 import (
 	"context"
+	"log"
 	"os"
 	"time"
 
@@ -12,10 +13,24 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
+type Attribute struct {
+	TraitType string `bson:"trait_type" json:"trait_type"`
+	Value     string `bson:"value" json:"value"`
+}
+
+type NftItemMetadata struct {
+	Name        string      `bson:"name" json:"name"`
+	Image       string      `bson:"image" json:"image"`
+	Attributes  []Attribute `bson:"attributes" json:"attributes"`
+	Description string      `bson:"description" json:"description"`
+	ExternalUrl string      `bson:"external_url" json:"external_url"`
+}
+
 type NftItem struct {
 	Address           string            `bson:"address" json:"address"`
 	Index             int64             `bson:"index" json:"index"`
 	CollectionAddress string            `bson:"collection_address" json:"collection_address"`
+	CollectionName    string            `bson:"collection_name" json:"collection_name"`
 	Owner             string            `bson:"owner" json:"owner"`
 	Metadata          map[string]string `bson:"metadata" json:"metadata"` // под вопросом как метадата будет приходить
 }
@@ -36,17 +51,17 @@ type Wallet struct {
 
 func NewMongoClient() *mongo.Client {
 	if loadErr := godotenv.Load(); loadErr != nil {
-		panic("Error load env.")
+		log.Fatal("Error load env.")
 	}
 
 	uri := os.Getenv("MONGODB_URI")
 	if uri == "" {
-		panic("Error. Add MongoDB uri in env.")
+		log.Fatal("Error. Add MongoDB uri in env.")
 	}
 
 	client, err := mongo.Connect(options.Client().ApplyURI(uri))
 	if err != nil {
-		panic("Error connect to MongoDB")
+		log.Fatal("Error connect to MongoDB")
 	}
 
 	return client
@@ -74,6 +89,40 @@ func UpdateWalletInMongo(ctx context.Context, mongoClient *mongo.Client, wallet 
 	filter := bson.D{{Key: "_id", Value: wallet.Address}}
 
 	update := bson.D{{Key: "$set", Value: bson.D{{Key: "nft_collections", Value: wallet.NftCollections}, {Key: "nft_items", Value: wallet.NftItems}}}}
+
+	if _, updateErr := walletsCollection.UpdateOne(dbCtx, filter, update); updateErr != nil {
+		return updateErr
+	}
+
+	return nil
+}
+
+func UpdateWalletNftItemsInMongo(ctx context.Context, mongoClient *mongo.Client, walletAddress string, nftItems []NftItem) error {
+	dbCtx, close := context.WithTimeout(ctx, 10*time.Second)
+	defer close()
+
+	walletsCollection := mongoClient.Database("create_nft_tma").Collection("wallets")
+
+	filter := bson.D{{Key: "_id", Value: walletAddress}}
+
+	update := bson.D{{Key: "$set", Value: bson.D{{Key: "nft_items", Value: nftItems}}}}
+
+	if _, updateErr := walletsCollection.UpdateOne(dbCtx, filter, update); updateErr != nil {
+		return updateErr
+	}
+
+	return nil
+}
+
+func UpdateWalletNftCollectionsInMongo(ctx context.Context, mongoClient *mongo.Client, walletAddress string, NftCollections []NftCollection) error {
+	dbCtx, close := context.WithTimeout(ctx, 10*time.Second)
+	defer close()
+
+	walletsCollection := mongoClient.Database("create_nft_tma").Collection("wallets")
+
+	filter := bson.D{{Key: "_id", Value: walletAddress}}
+
+	update := bson.D{{Key: "$set", Value: bson.D{{Key: "nft_collections", Value: NftCollections}}}}
 
 	if _, updateErr := walletsCollection.UpdateOne(dbCtx, filter, update); updateErr != nil {
 		return updateErr
