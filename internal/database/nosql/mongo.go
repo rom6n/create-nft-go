@@ -27,25 +27,24 @@ type NftItemMetadata struct {
 }
 
 type NftItem struct {
-	Address           string            `bson:"address" json:"address"`
-	Index             int64             `bson:"index" json:"index"`
-	CollectionAddress string            `bson:"collection_address" json:"collection_address"`
-	CollectionName    string            `bson:"collection_name" json:"collection_name"`
-	Owner             string            `bson:"owner" json:"owner"`
-	Metadata          map[string]string `bson:"metadata" json:"metadata"` // под вопросом как метадата будет приходить
+	Address           string         `bson:"address" json:"address"`
+	Index             int64          `bson:"index" json:"index"`
+	CollectionAddress string         `bson:"collection_address" json:"collection_address"`
+	CollectionName    string         `bson:"collection_name" json:"collection_name"`
+	Owner             string         `bson:"owner" json:"owner"`
+	Metadata          map[string]any `bson:"metadata" json:"metadata"` // под вопросом как метадата будет приходить
 }
 
 type NftCollection struct {
-	Address        string            `bson:"address" json:"address"`
-	NextItemIndex  int64             `bson:"next_item_index" json:"next_item_index"`
-	Owner          string            `bson:"owner" json:"owner"`
-	RoyaltyProcent int32             `bson:"royalty_procent" json:"royalty_procent"`
-	Metadata       map[string]string `bson:"metadata" json:"metadata"` // под вопросом как метадата будет приходить
+	Address       string         `bson:"address" json:"address"`
+	NextItemIndex int64          `bson:"next_item_index" json:"next_item_index"`
+	Owner         string         `bson:"owner" json:"owner"`
+	Metadata      map[string]any `bson:"metadata" json:"metadata"` // под вопросом как метадата будет приходить
 }
 
 type Wallet struct {
 	Address        string          `bson:"_id" json:"address"`
-	NftCollections []NftCollection `bson:"nft_collections" json:"nft_collections"`
+	NftCollections []NftCollection `bson:"nft_collections" json:"nft_collections"` // Скорее всего НЕ БУДЕТ, будут отображаться только коллекции добавлянные в приложение
 	NftItems       []NftItem       `bson:"nft_items" json:"nft_items"`
 }
 
@@ -67,20 +66,20 @@ func NewMongoClient() *mongo.Client {
 	return client
 }
 
-func AddWalletToMongo(ctx context.Context, mongoClient *mongo.Client, wallet Wallet) error {
+func AddWalletToMongo(ctx context.Context, mongoClient *mongo.Client, wallet *Wallet) error {
 	dbCtx, close := context.WithTimeout(ctx, 10*time.Second)
 	defer close()
 
 	walletsCollection := mongoClient.Database("create_nft_tma").Collection("wallets")
 
-	if _, insertErr := walletsCollection.InsertOne(dbCtx, wallet); insertErr != nil {
+	if _, insertErr := walletsCollection.InsertOne(dbCtx, *wallet); insertErr != nil {
 		return insertErr
 	}
 
 	return nil
 }
 
-func UpdateWalletInMongo(ctx context.Context, mongoClient *mongo.Client, wallet Wallet) error {
+func UpdateWalletInMongo(ctx context.Context, mongoClient *mongo.Client, wallet *Wallet) error {
 	dbCtx, close := context.WithTimeout(ctx, 10*time.Second)
 	defer close()
 
@@ -97,7 +96,7 @@ func UpdateWalletInMongo(ctx context.Context, mongoClient *mongo.Client, wallet 
 	return nil
 }
 
-func UpdateWalletNftItemsInMongo(ctx context.Context, mongoClient *mongo.Client, walletAddress string, nftItems []NftItem) error {
+func UpdateWalletNftItemsInMongo(ctx context.Context, mongoClient *mongo.Client, walletAddress string, nftItems *[]NftItem) error {
 	dbCtx, close := context.WithTimeout(ctx, 10*time.Second)
 	defer close()
 
@@ -105,7 +104,7 @@ func UpdateWalletNftItemsInMongo(ctx context.Context, mongoClient *mongo.Client,
 
 	filter := bson.D{{Key: "_id", Value: walletAddress}}
 
-	update := bson.D{{Key: "$set", Value: bson.D{{Key: "nft_items", Value: nftItems}}}}
+	update := bson.D{{Key: "$set", Value: bson.D{{Key: "nft_items", Value: *nftItems}}}}
 
 	if _, updateErr := walletsCollection.UpdateOne(dbCtx, filter, update); updateErr != nil {
 		return updateErr
@@ -114,7 +113,7 @@ func UpdateWalletNftItemsInMongo(ctx context.Context, mongoClient *mongo.Client,
 	return nil
 }
 
-func UpdateWalletNftCollectionsInMongo(ctx context.Context, mongoClient *mongo.Client, walletAddress string, NftCollections []NftCollection) error {
+/*func UpdateWalletNftCollectionsInMongo(ctx context.Context, mongoClient *mongo.Client, walletAddress string, NftCollections []NftCollection) error {
 	dbCtx, close := context.WithTimeout(ctx, 10*time.Second)
 	defer close()
 
@@ -129,7 +128,7 @@ func UpdateWalletNftCollectionsInMongo(ctx context.Context, mongoClient *mongo.C
 	}
 
 	return nil
-}
+}*/
 
 func FindWalletInMongoByAddress(ctx context.Context, mongoClient *mongo.Client, address string) (*Wallet, error) {
 	dbCtx, close := context.WithTimeout(ctx, 5*time.Second)
