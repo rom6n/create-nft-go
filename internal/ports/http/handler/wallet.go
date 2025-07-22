@@ -4,13 +4,17 @@ import (
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/rom6n/create-nft-go/internal/database/nosql"
-	"github.com/rom6n/create-nft-go/internal/ports/http/api"
-	"github.com/tonkeeper/tonapi-go"
+	"github.com/rom6n/create-nft-go/internal/domain/wallet"
+	"github.com/rom6n/create-nft-go/internal/ports/http/api/ton"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
 
-func GetWalletData(mongoClient *mongo.Client, tonApiClient *tonapi.Client) fiber.Handler {
+type WalletHandler struct {
+	WalletDB wallet.WalletRepository
+	TonApi   ton.TonApiRepository
+}
+
+func (h *WalletHandler) GetWalletData() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		ctx := c.Context()
 
@@ -20,35 +24,37 @@ func GetWalletData(mongoClient *mongo.Client, tonApiClient *tonapi.Client) fiber
 			return c.Status(fiber.StatusBadRequest).SendString("Wallet Address is required")
 		}
 
-		wallet, findErr := nosql.FindWalletInMongoByAddress(ctx, mongoClient, walletAddress)
-		if findErr != nil {
+		foundWallet, dbErr := h.WalletDB.GetWalletByAddress(ctx, walletAddress)
+		if dbErr != nil {
 			// добавляем кошелек в БД если его нет
-			if findErr == mongo.ErrNoDocuments {
+			if dbErr == mongo.ErrNoDocuments {
 				// Получаем информацию о кошельке
-				nftItems, apiErr := api.GetWalletNftItems(ctx, tonApiClient, walletAddress)
+				nftItems, apiErr := h.TonApi.GetWalletNftItems(ctx, walletAddress)
 				if apiErr != nil {
 					return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Error while getting wallet nft items: %v", apiErr))
 				}
 
-				wallet := nosql.Wallet{
+				wallet := wallet.Wallet{
 					Address:        walletAddress,
 					NftItems:       *nftItems,
 					NftCollections: nil,
 				}
 
-				nosql.AddWalletToMongo(ctx, mongoClient, &wallet)
+				if addErr := h.WalletDB.AddWallet(ctx, &wallet); addErr != nil {
+					return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Error while adding wallet to DB: %v", addErr))
+				}
 
-				return c.Status(fiber.StatusFound).JSON(wallet)
+				return c.Status(fiber.StatusCreated).JSON(wallet)
 			}
 
-			return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("MongoDB find error: %v", findErr))
+			return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Error while getting wallet data: %v", dbErr))
 		}
 
-		return c.Status(fiber.StatusFound).JSON(wallet)
+		return c.Status(fiber.StatusOK).JSON(foundWallet)
 	}
 }
 
-func UpdateWalletNftItems(mongoClient *mongo.Client, tonApiClient *tonapi.Client) fiber.Handler {
+func (h *WalletHandler) RefreshWalletNftItems() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		ctx := c.Context()
 
@@ -57,12 +63,12 @@ func UpdateWalletNftItems(mongoClient *mongo.Client, tonApiClient *tonapi.Client
 			return c.Status(fiber.StatusBadRequest).SendString("Wallet Address is required")
 		}
 
-		nftItems, apiErr := api.GetWalletNftItems(ctx, tonApiClient, walletAddress)
+		nftItems, apiErr := h.TonApi.GetWalletNftItems(ctx, walletAddress)
 		if apiErr != nil {
 			return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Error while getting wallet nft items: %v", apiErr))
 		}
 
-		if updateErr := nosql.UpdateWalletNftItemsInMongo(ctx, mongoClient, walletAddress, nftItems); updateErr != nil {
+		if updateErr := h.WalletDB.RefreshWalletNftItems(ctx, walletAddress, nftItems); updateErr != nil {
 			return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Error update NFT items: %v", updateErr))
 		}
 

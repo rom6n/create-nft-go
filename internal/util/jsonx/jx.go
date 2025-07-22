@@ -25,7 +25,6 @@ func DecodeAndPackNftItemMetadata(metadata tonapi.NftItemMetadata) (map[string]a
 	if nameErr != nil || imageErr != nil || descriptionErr != nil || urlErr != nil && fmt.Sprint(urlErr) != "unexpected EOF" {
 		log.Printf("‼️Error decoding NFTs metadata:\nName: %v\nImage: %v\nDesc: %v\nURL: %v\n", nameErr, imageErr, descriptionErr, urlErr)
 		return nil, &DecodeJxError{errorStr: fmt.Sprintf("Error decoding NFTs metadata:\nName: %v\nImage: %v\nDesc: %v\nURL: %v\n", nameErr, imageErr, descriptionErr, urlErr)}
-
 	}
 
 	clearMetadata := make(map[string]any)
