@@ -5,11 +5,11 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/rom6n/create-nft-go/internal/domain/user"
+	"github.com/rom6n/create-nft-go/internal/service/userService"
 )
 
 type UserHandler struct {
-	UserDB user.UserRepository
+	UserService userservice.UserServiceRepository
 }
 
 func (h *UserHandler) GetUserData() fiber.Handler {
@@ -26,7 +26,7 @@ func (h *UserHandler) GetUserData() fiber.Handler {
 			return c.Status(fiber.StatusBadRequest).SendString("User ID must be an int")
 		}
 
-		user, dbErr := h.UserDB.GetUserByID(ctx, userID)
+		user, dbErr := h.UserService.GetUserByID(ctx, userID)
 		if dbErr != nil {
 			return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Error while getting user data: %v", dbErr))
 		}

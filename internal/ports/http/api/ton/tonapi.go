@@ -12,6 +12,10 @@ import (
 	"github.com/tonkeeper/tonapi-go"
 )
 
+type TonApiRepository interface {
+	GetWalletNftItems(ctx context.Context, walletAddress string) (*[]wallet.NftItem, error)
+}
+
 type TonapiTonApiCfg struct {
 	Timeout time.Duration
 }

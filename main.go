@@ -11,36 +11,42 @@ import (
 	walletRepo "github.com/rom6n/create-nft-go/internal/domain/wallet/storage"
 	"github.com/rom6n/create-nft-go/internal/ports/http/api/ton"
 	"github.com/rom6n/create-nft-go/internal/ports/http/handler"
+	userservice "github.com/rom6n/create-nft-go/internal/service/userService"
+	walletservice "github.com/rom6n/create-nft-go/internal/service/walletService"
 	"github.com/rom6n/create-nft-go/internal/storage"
 )
 
 func main() {
 	ctx := context.Background()
 
-	DatabaseClient := storage.NewMongoClient()
-	defer DatabaseClient.Disconnect(ctx)
+	databaseClient := storage.NewMongoClient()
+	defer databaseClient.Disconnect(ctx)
 
-	WalletRepository := walletRepo.NewWalletRepository(DatabaseClient, walletRepo.WalletRepositoryCfg{
-		DBName:           "create-nft-tma",
-		WalletCollection: "wallets",
-		Timeout:          10 * time.Second,
+	walletRepo := walletRepo.NewWalletRepo(databaseClient, walletRepo.WalletRepoCfg{
+		DBName:         "create-nft-tma",
+		CollectionName: "wallets",
+		Timeout:        10 * time.Second,
 	})
 
-	UserRepository := userRepo.NewUserRepository(DatabaseClient, userRepo.UserRepositoryCfg{
+	userRepo := userRepo.NewUserRepo(databaseClient, userRepo.UserRepoCfg{
 		DBName:         "create-nft-tma",
 		CollectionName: "users",
 		Timeout:        10 * time.Second,
 	})
 
+	userServiceRepo := userservice.New(userRepo)
+
 	tonapiClient := ton.NewTonapiClient()
-	TonApiRepository := ton.NewTonApiRepository(tonapiClient, 30*time.Second)
+	tonApiRepository := ton.NewTonApiRepository(tonapiClient, 30*time.Second)
+
+	walletServiceRepo := walletservice.New(tonApiRepository, walletRepo)
+
 	WalletHandler := handler.WalletHandler{
-		WalletDB: WalletRepository,
-		TonApi:   TonApiRepository,
+		WalletServiceRepo: walletServiceRepo,
 	}
 
 	UserHandler := handler.UserHandler{
-		UserDB: UserRepository,
+		UserService: userServiceRepo,
 	}
 
 	app := fiber.New(fiber.Config{
