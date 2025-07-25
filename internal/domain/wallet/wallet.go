@@ -20,12 +20,12 @@ type NftItemMetadata struct {
 }
 
 type NftItem struct {
-	Address           string         `bson:"address" json:"address"`
-	Index             int64          `bson:"index" json:"index"`
-	CollectionAddress string         `bson:"collection_address" json:"collection_address"`
-	CollectionName    string         `bson:"collection_name" json:"collection_name"`
-	Owner             string         `bson:"owner" json:"owner"`
-	Metadata          map[string]any `bson:"metadata" json:"metadata"` // под вопросом как метадата будет приходить
+	Address           string          `bson:"address" json:"address"`
+	Index             int64           `bson:"index" json:"index"`
+	CollectionAddress string          `bson:"collection_address" json:"collection_address"`
+	CollectionName    string          `bson:"collection_name" json:"collection_name"`
+	Owner             string          `bson:"owner" json:"owner"`
+	Metadata          NftItemMetadata `bson:"metadata" json:"metadata"` // под вопросом как метадата будет приходить
 }
 
 type NftCollection struct {

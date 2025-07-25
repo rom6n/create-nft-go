@@ -13,7 +13,7 @@ import (
 )
 
 type TonApiRepository interface {
-	GetWalletNftItems(ctx context.Context, walletAddress string) (*[]wallet.NftItem, error)
+	GetWalletNftItems(ctx context.Context, walletAddress string) ([]wallet.NftItem, error)
 }
 
 type TonapiTonApiCfg struct {
@@ -54,7 +54,7 @@ func (r *tonapiTonApiRepository) GetContext(ctx context.Context) (context.Contex
 	return context.WithTimeout(ctx, r.timeout)
 }
 
-func (r *tonapiTonApiRepository) GetWalletNftItems(ctx context.Context, walletAddress string) (*[]wallet.NftItem, error) {
+func (r *tonapiTonApiRepository) GetWalletNftItems(ctx context.Context, walletAddress string) ([]wallet.NftItem, error) {
 	apiCtx, cancel := r.GetContext(ctx)
 	defer cancel()
 
@@ -69,7 +69,7 @@ func (r *tonapiTonApiRepository) GetWalletNftItems(ctx context.Context, walletAd
 	nftItems := make([]wallet.NftItem, 0, len(nfts.NftItems))
 
 	for _, item := range nfts.NftItems {
-		clearMetadata, decodeErr := jsonx.DecodeAndPackNftItemMetadata(item.Metadata)
+		nftMetadata, decodeErr := jsonx.DecodeAndPackNftItemMetadata(item.Metadata)
 		if decodeErr != nil {
 			return nil, decodeErr
 		}
@@ -77,7 +77,7 @@ func (r *tonapiTonApiRepository) GetWalletNftItems(ctx context.Context, walletAd
 		nftItem := wallet.NftItem{
 			Address:  item.Address,
 			Index:    item.Index,
-			Metadata: clearMetadata,
+			Metadata: nftMetadata,
 		}
 
 		if item.Collection.Set {
@@ -92,5 +92,5 @@ func (r *tonapiTonApiRepository) GetWalletNftItems(ctx context.Context, walletAd
 		nftItems = append(nftItems, nftItem)
 	}
 
-	return &nftItems, nil
+	return nftItems, nil
 }

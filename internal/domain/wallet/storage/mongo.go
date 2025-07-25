@@ -52,7 +52,7 @@ func (r *mongoWalletRepo) AddWallet(ctx context.Context, wallet *wallet.Wallet) 
 	return nil
 }
 
-func (r *mongoWalletRepo) UpdateWalletNftItems(ctx context.Context, walletAddress string, nftItems *[]wallet.NftItem) error {
+func (r *mongoWalletRepo) UpdateWalletNftItems(ctx context.Context, walletAddress string, nftItems []wallet.NftItem) error {
 	dbCtx, close := r.GetContext(ctx)
 	defer close()
 
@@ -60,7 +60,7 @@ func (r *mongoWalletRepo) UpdateWalletNftItems(ctx context.Context, walletAddres
 
 	filter := bson.D{{Key: "_id", Value: walletAddress}}
 
-	update := bson.D{{Key: "$set", Value: bson.D{{Key: "nft_items", Value: *nftItems}}}}
+	update := bson.D{{Key: "$set", Value: bson.D{{Key: "nft_items", Value: nftItems}}}}
 
 	if _, updateErr := walletsCollection.UpdateOne(dbCtx, filter, update); updateErr != nil {
 		return updateErr

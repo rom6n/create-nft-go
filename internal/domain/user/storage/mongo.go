@@ -47,9 +47,19 @@ func (r *mongoUserRepo) GetUserByID(ctx context.Context, userID int64) (*user.Us
 
 	var user user.User
 
-	if findErr := userCollection.FindOne(dbCtx, bson.D{{Key: "_id", Value: userID}}).Decode(&user); findErr != nil {
+	if findErr := userCollection.FindOne(dbCtx, bson.D{{Key: "id", Value: userID}}).Decode(&user); findErr != nil {
 		return nil, findErr
 	}
 
 	return &user, nil
+}
+
+func (v *mongoUserRepo) CreateUser(ctx context.Context, user *user.User) error {
+	dbCtx, cancel := v.GetContext(ctx)
+	defer cancel()
+
+	collection := v.GetCollection()
+
+	_, insertErr := collection.InsertOne(dbCtx, *user)
+	return insertErr
 }

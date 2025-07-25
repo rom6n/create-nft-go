@@ -9,7 +9,7 @@ import (
 )
 
 type WalletServiceRepository interface {
-	UpdateWalletNftItems(ctx context.Context, walletAddress string) (*[]wallet.NftItem, error)
+	UpdateWalletNftItems(ctx context.Context, walletAddress string) ([]wallet.NftItem, error)
 	GetWalletByAddress(ctx context.Context, walletAddress string) (*wallet.Wallet, error)
 }
 
@@ -29,7 +29,7 @@ func (v *walletServiceRepo) createWallet(ctx context.Context, wallet *wallet.Wal
 	return v.WalletRepo.AddWallet(ctx, wallet)
 }
 
-func (v *walletServiceRepo) UpdateWalletNftItems(ctx context.Context, walletAddress string) (*[]wallet.NftItem, error) {
+func (v *walletServiceRepo) UpdateWalletNftItems(ctx context.Context, walletAddress string) ([]wallet.NftItem, error) {
 	nftItems, apiErr := v.TonApi.GetWalletNftItems(ctx, walletAddress)
 	if apiErr != nil {
 		return nil, apiErr
@@ -56,7 +56,7 @@ func (v *walletServiceRepo) GetWalletByAddress(ctx context.Context, walletAddres
 
 			wallet := wallet.Wallet{
 				Address:        walletAddress,
-				NftItems:       *nftItems,
+				NftItems:       nftItems,
 				NftCollections: nil,
 			}
 
