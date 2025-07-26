@@ -1,11 +1,5 @@
 package nftcollection
 
-import (
-	"context"
+type NftCollectionRepository interface{}
 
-	"github.com/google/uuid"
-)
-
-type NftCollectionRepository interface {
-	GetCollectionByOwnerUuid(ctx context.Context, ownerUuid uuid.UUID)
-}
+//GetCollectionByOwnerUuid(ctx context.Context, ownerUuid uuid.UUID)

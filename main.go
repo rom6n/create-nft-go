@@ -2,22 +2,30 @@ package main
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/joho/godotenv"
+	nftcollectionrepo "github.com/rom6n/create-nft-go/internal/domain/nftCollection/storage"
 	userRepo "github.com/rom6n/create-nft-go/internal/domain/user/storage"
 	walletRepo "github.com/rom6n/create-nft-go/internal/domain/wallet/storage"
 	"github.com/rom6n/create-nft-go/internal/ports/http/api/ton"
 	"github.com/rom6n/create-nft-go/internal/ports/http/handler"
+	nftcollectionservice "github.com/rom6n/create-nft-go/internal/service/nftCollectionService"
 	userservice "github.com/rom6n/create-nft-go/internal/service/userService"
 	walletservice "github.com/rom6n/create-nft-go/internal/service/walletService"
 	"github.com/rom6n/create-nft-go/internal/storage"
+	"github.com/rom6n/create-nft-go/internal/util/tonutil"
 )
 
 func main() {
 	ctx := context.Background()
+	if loadErr := godotenv.Load(); loadErr != nil {
+		log.Fatal("‼️ Error loading .env file")
+	}
 
 	databaseClient := storage.NewMongoClient()
 	defer databaseClient.Disconnect(ctx)
@@ -27,6 +35,8 @@ func main() {
 		CollectionName: "wallets",
 		Timeout:        10 * time.Second,
 	})
+
+	nftCollectionRepo := nftcollectionrepo.NewNftCollectionRepo()
 
 	userRepo := userRepo.NewUserRepo(databaseClient, userRepo.UserRepoCfg{
 		DBName:         "create-nft-tma",
@@ -49,6 +59,10 @@ func main() {
 		UserService: userServiceRepo,
 	}
 
+	NftCollectionHandler := handler.NftCollectionHandler{
+		NftCollectionService: nftcollectionservice.New(nftCollectionRepo, tonutil.GetTestPrivateKey()),
+	}
+
 	app := fiber.New(fiber.Config{
 		JSONEncoder: json.Marshal,
 		JSONDecoder: json.Unmarshal,
@@ -67,12 +81,15 @@ func main() {
 	api := app.Group("/api")
 	walletApi := api.Group("/wallet")
 	userApi := api.Group("/user")
+	nftCollectionApi := api.Group("/collection")
 
 	walletApi.Get("/get-wallet-data", WalletHandler.GetWalletData())
 
 	walletApi.Get("/refresh-wallet-nft-items", WalletHandler.RefreshWalletNftItems()) // В будущем поменять на PUT
 
 	userApi.Get("/get-user-data", UserHandler.GetUserData())
+
+	nftCollectionApi.Get("/deploy-market", NftCollectionHandler.DeployMarketContract())
 
 	app.Listen(":2000")
 }

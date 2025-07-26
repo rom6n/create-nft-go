@@ -6,7 +6,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/joho/godotenv"
 	"github.com/rom6n/create-nft-go/internal/domain/wallet"
 	"github.com/rom6n/create-nft-go/internal/util/jsonx"
 	"github.com/tonkeeper/tonapi-go"
@@ -26,10 +25,6 @@ type tonapiTonApiRepository struct {
 }
 
 func NewTonapiClient() *tonapi.Client {
-	if loadErr := godotenv.Load(); loadErr != nil {
-		log.Fatal("Error loading .env file")
-	}
-
 	token := os.Getenv("TONAPI_TOKEN")
 	if token == "" {
 		log.Fatal("Error. Add TonApi token to env.")
@@ -93,4 +88,8 @@ func (r *tonapiTonApiRepository) GetWalletNftItems(ctx context.Context, walletAd
 	}
 
 	return nftItems, nil
+}
+
+func (v *tonapiTonApiRepository) liteclientGet(ctx context.Context, address string) {
+
 }

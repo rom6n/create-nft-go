@@ -36,7 +36,7 @@ require (
 	github.com/segmentio/asm v1.2.0 // indirect
 	github.com/sigurn/crc16 v0.0.0-20211026045750-20ab5afb07e3 // indirect
 	github.com/snksoft/crc v1.1.0 // indirect
-	github.com/tonkeeper/tongo v1.7.0 // indirect
+	github.com/tonkeeper/tongo v1.16.16 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.57.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
