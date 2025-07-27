@@ -12,7 +12,7 @@ type NftCollection struct {
 	Metadata      NftCollectionMetadata `bson:"metadata" json:"metadata"` // под вопросом как метадата будет приходить
 }
 
-type MintCollectionCfg struct {
+type DeployCollectionCfg struct {
 	Owner             string
 	CommonContent     string
 	CollectionContent string

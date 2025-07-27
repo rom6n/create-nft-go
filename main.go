@@ -27,6 +27,8 @@ func main() {
 		log.Fatal("‼️ Error loading .env file")
 	}
 
+	privateKey := tonutil.GetTestPrivateKey()
+
 	databaseClient := storage.NewMongoClient()
 	defer databaseClient.Disconnect(ctx)
 
@@ -60,7 +62,7 @@ func main() {
 	}
 
 	NftCollectionHandler := handler.NftCollectionHandler{
-		NftCollectionService: nftcollectionservice.New(nftCollectionRepo, tonutil.GetTestPrivateKey()),
+		NftCollectionService: nftcollectionservice.New(nftCollectionRepo, userRepo, privateKey),
 	}
 
 	app := fiber.New(fiber.Config{
@@ -90,6 +92,8 @@ func main() {
 	userApi.Get("/get-user-data", UserHandler.GetUserData())
 
 	nftCollectionApi.Get("/deploy-market", NftCollectionHandler.DeployMarketContract())
+
+	nftCollectionApi.Get("/deploy-collection-test", NftCollectionHandler.DeployNftCollection())
 
 	app.Listen(":2000")
 }

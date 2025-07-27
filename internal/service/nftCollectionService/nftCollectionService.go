@@ -8,6 +8,8 @@ import (
 	"time"
 
 	nftcollection "github.com/rom6n/create-nft-go/internal/domain/nftCollection"
+	"github.com/rom6n/create-nft-go/internal/domain/user"
+	userservice "github.com/rom6n/create-nft-go/internal/service/userService"
 	"github.com/rom6n/create-nft-go/internal/util/tonutil"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/liteclient"
@@ -17,23 +19,25 @@ import (
 )
 
 type NftCollectionServiceRepository interface {
-	DeployNftCollection(ctx context.Context, mintCfg nftcollection.MintCollectionCfg) (nftcollection.NftCollection, error)
+	DeployNftCollection(ctx context.Context, mintCfg nftcollection.DeployCollectionCfg, ownerID int64) (*nftcollection.NftCollection, error)
 	DeployMarketplaceContract(ctx context.Context) error
 }
 
-type NftCollectionServiceRepo struct {
+type nftCollectionServiceRepo struct {
 	NftCollectionRepo nftcollection.NftCollectionRepository
+	UserRepo          userservice.UserServiceRepository
 	PrivateKey        ed25519.PrivateKey
 }
 
-func New(NftCollectionRepository nftcollection.NftCollectionRepository, privateKey ed25519.PrivateKey) NftCollectionServiceRepository {
-	return &NftCollectionServiceRepo{
-		NftCollectionRepository,
+func New(NftCollectionRepo nftcollection.NftCollectionRepository, userCollectionRepo user.UserRepository, privateKey ed25519.PrivateKey) NftCollectionServiceRepository {
+	return &nftCollectionServiceRepo{
+		NftCollectionRepo,
+		userCollectionRepo,
 		privateKey,
 	}
 }
 
-func (v *NftCollectionServiceRepo) DeployMarketplaceContract(ctx context.Context) error {
+func (v *nftCollectionServiceRepo) DeployMarketplaceContract(ctx context.Context) error {
 	svcCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
@@ -53,10 +57,10 @@ func (v *NftCollectionServiceRepo) DeployMarketplaceContract(ctx context.Context
 	msgBody := cell.BeginCell().EndCell()
 	deployedAddr, _, _, deployErr := walletV4.DeployContractWaitTransaction(
 		svcCtx,
-		tlb.MustFromTON("0.05"),
+		tlb.MustFromTON("0.07"),
 		msgBody,
 		tonutil.GetMarketContractCode(),
-		tonutil.GetMarketContractDeployData(0, 1947320581, []byte(ed25519.PublicKey(v.PrivateKey))),
+		tonutil.GetMarketContractDeployData(0, 1947320581, []byte(v.PrivateKey.Public().(ed25519.PublicKey))),
 	)
 	if deployErr != nil {
 		log.Printf("Error deploy market contract: %v\n", deployErr)
@@ -68,54 +72,115 @@ func (v *NftCollectionServiceRepo) DeployMarketplaceContract(ctx context.Context
 	return nil
 }
 
-func (v *NftCollectionServiceRepo) DeployNftCollection(ctx context.Context, mintCfg nftcollection.MintCollectionCfg) (nftcollection.NftCollection, error) {
+func (v *nftCollectionServiceRepo) DeployNftCollection(ctx context.Context, mintCfg nftcollection.DeployCollectionCfg, ownerID int64) (*nftcollection.NftCollection, error) {
 	svcCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	// TESTNET !!!!!!!!!!!!!
+	marketAddress := "EQC4erFNnXJK_keR6eJtoG_70f6ygf1hnh1VYDOHZ0W4oqVh"
 	client := liteclient.NewConnectionPool()
 	if connErr := client.AddConnectionsFromConfigUrl(svcCtx, "https://ton-blockchain.github.io/testnet-global.config.json"); connErr != nil {
-		return nftcollection.NftCollection{}, connErr
+		return &nftcollection.NftCollection{}, connErr
 	}
 
 	api := ton.NewAPIClient(client).WithRetry()
-	apiCtx := client.StickyContext(context.Background())
+	apiCtx := client.StickyContext(svcCtx)
+
 	block, chainErr := api.CurrentMasterchainInfo(apiCtx)
 	if chainErr != nil {
-		return nftcollection.NftCollection{}, chainErr
+		return &nftcollection.NftCollection{}, chainErr
 	}
 
-	res, methodErr := api.WaitForBlock(block.SeqNo).RunGetMethod(apiCtx, block, address.MustParseAddr("kQA64pUp9DBPh8TqOj9PS6fstMTdiuoNxcpW_R3dm3G4jfOX"), "seqno")
+	res, methodErr := api.WaitForBlock(block.SeqNo).RunGetMethod(apiCtx, block, address.MustParseAddr(marketAddress), "seqno")
 	if methodErr != nil {
-		return nftcollection.NftCollection{}, methodErr
+		return &nftcollection.NftCollection{}, methodErr
 	}
 
 	seqno := res.MustInt(0)
-
 	log.Printf("Current seqno = %d", seqno)
 
-	forwardMessage := cell.BeginCell().EndCell()
-	var mode uint64 = 1
+	owner, userErr := v.UserRepo.GetUserByID(svcCtx, ownerID)
+	if userErr != nil {
+		return &nftcollection.NftCollection{}, userErr
+	}
 
-	dataSign := cell.BeginCell().
-		MustStoreUInt(mode, 1).
-		MustStoreRef(forwardMessage).
-		EndCell().Sign(v.PrivateKey)
+	codeCell, codeErr := tonutil.GetNftCollectionContractCode()
+	if codeErr != nil {
+		return &nftcollection.NftCollection{}, codeErr
+	}
 
-	subwalletId := 11111
+	eachNftItemCode, nftCodeErr := tonutil.GetNftItemCode()
+	if nftCodeErr != nil {
+		return &nftcollection.NftCollection{}, nftCodeErr
+	}
+
+	collectionContent := cell.BeginCell().
+		MustStoreUInt(1, 8).
+		MustStoreStringSnake(mintCfg.CollectionContent).
+		EndCell()
+	commonContent := cell.BeginCell().
+		MustStoreStringSnake(mintCfg.CommonContent).
+		EndCell()
+	content := cell.BeginCell().
+		MustStoreRef(collectionContent).
+		MustStoreRef(commonContent).
+		EndCell()
+
+	royaltyParams := cell.BeginCell().
+		MustStoreUInt(uint64(mintCfg.RoyaltyDividend), 16).
+		MustStoreUInt(uint64(mintCfg.RoyaltyDivisor), 16).
+		MustStoreAddr(address.MustParseAddr(mintCfg.Owner)).
+		EndCell()
+
+	dataCell := cell.BeginCell().
+		MustStoreAddr(address.MustParseAddr(mintCfg.Owner)).
+		MustStoreUInt(1, 64).
+		MustStoreRef(content).
+		MustStoreRef(eachNftItemCode).
+		MustStoreRef(royaltyParams).
+		EndCell()
+
+	stateInit := cell.BeginCell().
+		MustStoreUInt(6, 5).
+		MustStoreRef(codeCell).
+		MustStoreRef(dataCell).
+		EndCell()
+
+	toAddress := tonutil.CalculateAddress(0, stateInit)
+
+	forwardMessage := cell.BeginCell().
+		MustStoreUInt(0x18, 6).
+		MustStoreAddr(toAddress).
+		MustStoreCoins(50000000).
+		MustStoreUInt(4+2+1, 1+4+4+64+32+1+1+1).
+		MustStoreRef(stateInit).
+		MustStoreRef(cell.BeginCell().EndCell()).
+		EndCell()
+
+	var mode uint64 = 0
+	subwalletId := 1947320581
 	validUntil := time.Now().Add(1 * time.Minute).Unix()
 
-	msgData := cell.BeginCell().
-		MustStoreBinarySnake(dataSign).
+	dataSigned := cell.BeginCell().
 		MustStoreUInt(uint64(subwalletId), 32).
-		MustStoreUInt(uint64(validUntil), 32).
+		MustStoreUInt(uint64(validUntil), 64).
+		MustStoreUInt(seqno.Uint64(), 32).
+		MustStoreUInt(mode, 8).
+		MustStoreRef(forwardMessage).
+		EndCell().
+		Sign(v.PrivateKey)
+
+	msgData := cell.BeginCell().
+		MustStoreBinarySnake(dataSigned).
+		MustStoreUInt(uint64(subwalletId), 32).
+		MustStoreUInt(uint64(validUntil), 64).
 		MustStoreUInt(seqno.Uint64(), 32).
 		MustStoreUInt(mode, 8).
 		MustStoreRef(forwardMessage).
 		EndCell()
 
 	msg := &tlb.ExternalMessage{
-		DstAddr: address.MustParseAddr("kQBL2_3lMiyywU17g-or8N7v9hDmPCpttzBPE2isF2GTziky"),
+		DstAddr: address.MustParseAddr(marketAddress),
 		Body:    msgData,
 	}
 
@@ -124,8 +189,21 @@ func (v *NftCollectionServiceRepo) DeployNftCollection(ctx context.Context, mint
 	msgErr := api.SendExternalMessage(apiCtx, msg)
 	if msgErr != nil {
 		// FYI: it can fail if not enough balance on contract
-		return nftcollection.NftCollection{}, msgErr
+		return &nftcollection.NftCollection{}, msgErr
 	}
 
-	return nftcollection.NftCollection{}, nil
+	//
+	// ToDo: Должно добавляться в базу данных !!!!!!!!!!!!!!!!!!!!!!!
+	//
+	//
+	//
+
+	log.Printf("NFT COLLECTION DEPLOYED AT ADDRESS: %v\n", toAddress.String())
+
+	return &nftcollection.NftCollection{
+		Address:       toAddress.String(),
+		NextItemIndex: 1,
+		Owner:         owner.UUID,
+		Metadata:      nftcollection.NftCollectionMetadata{},
+	}, nil
 }
