@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	nftcollection "github.com/rom6n/create-nft-go/internal/domain/nftCollection"
@@ -15,21 +16,34 @@ type NftCollectionHandler struct {
 func (v *NftCollectionHandler) DeployNftCollection() fiber.Handler { // Пока что деньги будут списываться с подключенного кошелька. Потом добавлю баланс в приложении
 	return func(c *fiber.Ctx) error {
 		ctx := c.Context()
-		//var collectionCfg nftcollection.DeployCollectionCfg
-		//parseErr := c.BodyParser(&collectionCfg)
-		//if parseErr != nil {
-		//return c.Status(fiber.StatusBadRequest).SendString(fmt.Sprintf("Error. NFT Collection config must match cfg struct: %v", parseErr))
-		//}
 
-		//FOR TEST ONLY
-		collectionCfg := nftcollection.DeployCollectionCfg{
-			Owner:             "0QDU46qYz4rHAJhszrW9w6imF8p4Cw5dS1GpPTcJ9vqNSmnf",
-			CommonContent:     "https://t.me/MrRoman",
-			CollectionContent: "https://t.me/MrRoman",
-			RoyaltyDividend:   2,
-			RoyaltyDivisor:    100,
+		ownerWallet, ownerIDStr, commonContent, collectionContent, royaltyDividendStr, royaltyDivisorStr :=
+			c.Params("owner"), c.Params("owner-id"), c.Params("common-content"), c.Params("collection-content"), c.Params("royalty-dividend"), c.Params("royalty-divisor")
+
+		if ownerIDStr == "" || commonContent == "" || collectionContent == "" || royaltyDividendStr == "" || royaltyDivisorStr == "" {
+			c.Status(fiber.StatusBadRequest).SendString("ownerID, common content, collection content, royalty dividend, royalty divisor are required")
 		}
-		collection, deployErr := v.NftCollectionService.DeployNftCollection(ctx, collectionCfg, 5003727541)
+
+		royaltyDividend, parseErr := strconv.ParseUint(royaltyDividendStr, 0, 16)
+		royaltyDivisor, parseErr2 := strconv.ParseUint(royaltyDivisorStr, 0, 16)
+		if parseErr != nil || parseErr2 != nil {
+			c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Error parse to uint16: %v. Error 2: %v", parseErr, parseErr2))
+		}
+
+		ownerID, parseErr := strconv.Atoi(ownerIDStr)
+		if parseErr != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Error parse to int: %v", parseErr))
+		}
+
+		collectionCfg := nftcollection.DeployCollectionCfg{
+			Owner:             ownerWallet,
+			CommonContent:     commonContent,
+			CollectionContent: collectionContent,
+			RoyaltyDividend:   uint16(royaltyDividend),
+			RoyaltyDivisor:    uint16(royaltyDivisor),
+		}
+
+		collection, deployErr := v.NftCollectionService.DeployNftCollection(ctx, collectionCfg, int64(ownerID))
 		if deployErr != nil {
 			return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Error while deploying nft collection: %v", deployErr))
 		}

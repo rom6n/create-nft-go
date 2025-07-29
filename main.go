@@ -35,15 +35,19 @@ func main() {
 	walletRepo := walletRepo.NewWalletRepo(databaseClient, walletRepo.WalletRepoCfg{
 		DBName:         "create-nft-tma",
 		CollectionName: "wallets",
-		Timeout:        10 * time.Second,
+		Timeout:        15 * time.Second,
 	})
 
-	nftCollectionRepo := nftcollectionrepo.NewNftCollectionRepo()
+	nftCollectionRepo := nftcollectionrepo.NewNftCollectionRepo(databaseClient, nftcollectionrepo.NftCollectionRepoCfg{
+		DBName:         "create-nft-tma",
+		CollectionName: "nft-collections",
+		Timeout:        15 * time.Second,
+	})
 
 	userRepo := userRepo.NewUserRepo(databaseClient, userRepo.UserRepoCfg{
 		DBName:         "create-nft-tma",
 		CollectionName: "users",
-		Timeout:        10 * time.Second,
+		Timeout:        15 * time.Second,
 	})
 
 	userServiceRepo := userservice.New(userRepo)

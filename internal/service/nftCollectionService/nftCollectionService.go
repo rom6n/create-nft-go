@@ -132,6 +132,10 @@ func (v *nftCollectionServiceRepo) DeployNftCollection(ctx context.Context, mint
 		MustStoreAddr(address.MustParseAddr(mintCfg.Owner)).
 		EndCell()
 
+	if mintCfg.Owner == "" {
+		mintCfg.Owner = marketAddress
+	}
+
 	dataCell := cell.BeginCell().
 		MustStoreAddr(address.MustParseAddr(mintCfg.Owner)).
 		MustStoreUInt(1, 64).
@@ -184,26 +188,40 @@ func (v *nftCollectionServiceRepo) DeployNftCollection(ctx context.Context, mint
 		Body:    msgData,
 	}
 
-	log.Println("Sending external message with hash:", hex.EncodeToString(msg.NormalizedHash()))
-
-	msgErr := api.SendExternalMessage(apiCtx, msg)
-	if msgErr != nil {
-		// FYI: it can fail if not enough balance on contract
-		return &nftcollection.NftCollection{}, msgErr
-	}
-
-	//
-	// ToDo: Должно добавляться в базу данных !!!!!!!!!!!!!!!!!!!!!!!
-	//
-	//
-	//
-
-	log.Printf("NFT COLLECTION DEPLOYED AT ADDRESS: %v\n", toAddress.String())
-
-	return &nftcollection.NftCollection{
+	nftCollection := &nftcollection.NftCollection{
 		Address:       toAddress.String(),
 		NextItemIndex: 1,
 		Owner:         owner.UUID,
 		Metadata:      nftcollection.NftCollectionMetadata{},
-	}, nil
+	}
+
+	if mintCfg.Owner == marketAddress {
+		createErr := v.NftCollectionRepo.CreateCollection(svcCtx, nftCollection, owner.UUID)
+		if createErr != nil {
+			return &nftcollection.NftCollection{}, createErr
+		}
+	}
+
+	log.Println("Sending external message with hash:", hex.EncodeToString(msg.NormalizedHash()))
+
+	msgErr := api.SendExternalMessage(apiCtx, msg)
+
+	if msgErr != nil {
+		// FYI: it can fail if not enough balance on contract
+		if mintCfg.Owner == marketAddress {
+			for i := 0; i < 10; i++ {
+				deleteErr := v.NftCollectionRepo.DeleteCollection(svcCtx, toAddress.String())
+				if deleteErr == nil {
+					break
+				}
+				log.Printf("‼️ Cant delete NFT Collection: %v, on error from DB, TRY: %v\n", toAddress.String(), i)
+				time.Sleep(1*time.Second)
+			}
+		}
+		return &nftcollection.NftCollection{}, msgErr
+	}
+
+	log.Printf("NFT COLLECTION DEPLOYED AT ADDRESS: %v\n", toAddress.String())
+
+	return nftCollection, nil
 }
