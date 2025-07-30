@@ -1,4 +1,4 @@
-package tonutil
+package nftitemutils
 
 import (
 	"encoding/hex"

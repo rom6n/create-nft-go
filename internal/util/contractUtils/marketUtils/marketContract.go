@@ -1,8 +1,10 @@
-package tonutil
+package marketutils
 
 import (
+	"crypto/ed25519"
 	"encoding/hex"
 	"log"
+	"math/big"
 
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
@@ -28,4 +30,26 @@ func GetMarketContractDeployData(seqno, subwallet int32, publicKey []byte) *cell
 		MustStoreUInt(uint64(subwallet), 32).
 		MustStoreBinarySnake(publicKey).
 		EndCell()
+}
+
+func PackMessageToMarketContract(privateKey ed25519.PrivateKey, validUntil int64, seqno *big.Int, mode uint64, deployMsg *cell.Cell) *cell.Cell {
+	msgSigned := cell.BeginCell().
+		MustStoreUInt(uint64(1947320581), 32).
+		MustStoreUInt(uint64(validUntil), 64).
+		MustStoreUInt(seqno.Uint64(), 32).
+		MustStoreUInt(mode, 8).
+		MustStoreRef(deployMsg).
+		EndCell().
+		Sign(privateKey)
+
+	msg := cell.BeginCell().
+		MustStoreBinarySnake(msgSigned).
+		MustStoreUInt(uint64(1947320581), 32).
+		MustStoreUInt(uint64(validUntil), 64).
+		MustStoreUInt(seqno.Uint64(), 32).
+		MustStoreUInt(mode, 8).
+		MustStoreRef(deployMsg).
+		EndCell()
+
+	return msg
 }

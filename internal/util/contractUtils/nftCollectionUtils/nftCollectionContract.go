@@ -1,8 +1,11 @@
-package tonutil
+package nftcollectionutils
 
 import (
 	"encoding/hex"
+	"net/http"
 
+	"github.com/goccy/go-json"
+	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
@@ -19,4 +22,59 @@ func GetNftCollectionContractCode() (*cell.Cell, error) {
 	}
 
 	return code, nil
+}
+
+func GetNftCollectionMetadataByLink(link string, parseTo interface{}) error {
+	body, metadataErr := http.Get(link)
+	if metadataErr != nil {
+		return metadataErr
+	}
+
+	var rawNftCollectionMetadata []byte
+
+	if _, readErr := body.Body.Read(rawNftCollectionMetadata); readErr != nil {
+		return readErr
+	}
+
+	if unmarshErr := json.Unmarshal(rawNftCollectionMetadata, parseTo); unmarshErr != nil {
+		return unmarshErr
+	}
+
+	return nil
+}
+
+func PackOffchainContentForNftCollection(collectionContent string, commonContent string) *cell.Cell {
+	collectionCont := cell.BeginCell().
+		MustStoreUInt(1, 8).
+		MustStoreStringSnake(collectionContent).
+		EndCell()
+
+	commonCont := cell.BeginCell().
+		MustStoreStringSnake(commonContent).
+		EndCell()
+
+	content := cell.BeginCell().
+		MustStoreRef(collectionCont).
+		MustStoreRef(commonCont).
+		EndCell()
+
+	return content
+}
+
+func PackNftCollectionRoyaltyParams(royaltyDividend uint16, royaltyDivisor uint16, royaltyAddress string) *cell.Cell {
+	return cell.BeginCell().
+		MustStoreUInt(uint64(royaltyDividend), 16).
+		MustStoreUInt(uint64(royaltyDivisor), 16).
+		MustStoreAddr(address.MustParseAddr(royaltyAddress)).
+		EndCell()
+}
+
+func PackNftCollectionData(ownerAddress string, content *cell.Cell, nftItemCode *cell.Cell, royaltyParams *cell.Cell) *cell.Cell {
+	return cell.BeginCell().
+		MustStoreAddr(address.MustParseAddr(ownerAddress)).
+		MustStoreUInt(1, 64).
+		MustStoreRef(content).
+		MustStoreRef(nftItemCode).
+		MustStoreRef(royaltyParams).
+		EndCell()
 }

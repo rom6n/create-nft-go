@@ -3,6 +3,14 @@ package nftcollection
 import "github.com/google/uuid"
 
 type NftCollectionMetadata struct {
+	Name         string   `bson:"name" json:"name"`
+	Image        string   `bson:"image" json:"image"`
+	CoverImage   string   `bson:"cover_image" json:"cover_image"`
+	Description  string   `bson:"description" json:"description"`
+	ExternalUrl  string   `bson:"external_url" json:"external_url"`
+	ExternalLink string   `bson:"external_link" json:"external_link"`
+	SocialLinks  []string `bson:"social_links" json:"social_links"`
+	Marketplace  string   `bson:"marketplace" json:"marketplace"`
 }
 
 type NftCollection struct {
@@ -13,11 +21,20 @@ type NftCollection struct {
 }
 
 type DeployCollectionCfg struct {
-	Owner             string
+	OwnerAddress             string
 	CommonContent     string
 	CollectionContent string
 	RoyaltyDividend   uint16
 	RoyaltyDivisor    uint16
 	// next item index always is 1
 	// nft item code
+}
+
+func New(address string, ownerUuid uuid.UUID, metadata *NftCollectionMetadata) *NftCollection {
+	return &NftCollection{
+		Address:       address,
+		NextItemIndex: 1,
+		Owner:         ownerUuid,
+		Metadata:      *metadata,
+	}
 }

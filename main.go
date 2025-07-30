@@ -28,6 +28,7 @@ func main() {
 	}
 
 	privateKey := tonutil.GetTestPrivateKey()
+	liteClient, liteclientApi := tonutil.GetLiteClient(ctx)
 
 	databaseClient := storage.NewMongoClient()
 	defer databaseClient.Disconnect(ctx)
@@ -66,7 +67,7 @@ func main() {
 	}
 
 	NftCollectionHandler := handler.NftCollectionHandler{
-		NftCollectionService: nftcollectionservice.New(nftCollectionRepo, userRepo, privateKey),
+		NftCollectionService: nftcollectionservice.New(nftCollectionRepo, userRepo, privateKey, liteClient, liteclientApi),
 	}
 
 	app := fiber.New(fiber.Config{

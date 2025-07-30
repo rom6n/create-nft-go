@@ -6,11 +6,13 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	nftcollection "github.com/rom6n/create-nft-go/internal/domain/nftCollection"
+	deploynftcollection "github.com/rom6n/create-nft-go/internal/service/deployNftCollection"
 	nftcollectionservice "github.com/rom6n/create-nft-go/internal/service/nftCollectionService"
 )
 
 type NftCollectionHandler struct {
-	NftCollectionService nftcollectionservice.NftCollectionServiceRepository
+	NftCollectionService       nftcollectionservice.NftCollectionServiceRepository
+	DeployNftCollectionService deploynftcollection.DeployNftCollectionServiceRepository
 }
 
 func (v *NftCollectionHandler) DeployNftCollection() fiber.Handler { // Пока что деньги будут списываться с подключенного кошелька. Потом добавлю баланс в приложении
@@ -36,14 +38,14 @@ func (v *NftCollectionHandler) DeployNftCollection() fiber.Handler { // Пока
 		}
 
 		collectionCfg := nftcollection.DeployCollectionCfg{
-			Owner:             ownerWallet,
+			OwnerAddress:      ownerWallet,
 			CommonContent:     commonContent,
 			CollectionContent: collectionContent,
 			RoyaltyDividend:   uint16(royaltyDividend),
 			RoyaltyDivisor:    uint16(royaltyDivisor),
 		}
 
-		collection, deployErr := v.NftCollectionService.DeployNftCollection(ctx, collectionCfg, int64(ownerID))
+		collection, deployErr := v.DeployNftCollectionService.DeployNftCollection(ctx, collectionCfg, int64(ownerID))
 		if deployErr != nil {
 			return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Error while deploying nft collection: %v", deployErr))
 		}
