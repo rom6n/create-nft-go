@@ -25,7 +25,7 @@ func (v *userServiceRepo) GetUserByID(ctx context.Context, userID int64) (*user.
 	if dbErr != nil {
 		if dbErr == mongo.ErrNoDocuments {
 			newUuid := uuid.New()
-			user := user.NewUser(newUuid, userID, 1, "user")
+			user := user.NewUser(newUuid, userID, 1, "user", 0)
 			createErr := v.UserRepo.CreateUser(ctx, &user)
 			return &user, createErr
 		}

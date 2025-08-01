@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/rom6n/create-nft-go/internal/domain/wallet"
-	"github.com/rom6n/create-nft-go/internal/util/jsonx"
+	"github.com/rom6n/create-nft-go/internal/utils/jsonx"
 	"github.com/tonkeeper/tonapi-go"
 )
 
@@ -19,7 +19,7 @@ type TonapiTonApiCfg struct {
 	Timeout time.Duration
 }
 
-type tonapiTonApiRepository struct {
+type tonapiTonApiRepo struct {
 	client  *tonapi.Client
 	timeout time.Duration
 }
@@ -38,18 +38,18 @@ func NewTonapiClient() *tonapi.Client {
 	return client
 }
 
-func NewTonApiRepository(tonapiClient *tonapi.Client, timeout time.Duration) TonApiRepository {
-	return &tonapiTonApiRepository{
+func NewTonApiRepo(tonapiClient *tonapi.Client, timeout time.Duration) TonApiRepository {
+	return &tonapiTonApiRepo{
 		client:  tonapiClient,
 		timeout: timeout,
 	}
 }
 
-func (r *tonapiTonApiRepository) GetContext(ctx context.Context) (context.Context, context.CancelFunc) {
+func (r *tonapiTonApiRepo) GetContext(ctx context.Context) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(ctx, r.timeout)
 }
 
-func (r *tonapiTonApiRepository) GetWalletNftItems(ctx context.Context, walletAddress string) ([]wallet.NftItem, error) {
+func (r *tonapiTonApiRepo) GetWalletNftItems(ctx context.Context, walletAddress string) ([]wallet.NftItem, error) {
 	apiCtx, cancel := r.GetContext(ctx)
 	defer cancel()
 
@@ -88,8 +88,4 @@ func (r *tonapiTonApiRepository) GetWalletNftItems(ctx context.Context, walletAd
 	}
 
 	return nftItems, nil
-}
-
-func (v *tonapiTonApiRepository) liteclientGet(ctx context.Context, address string) {
-
 }

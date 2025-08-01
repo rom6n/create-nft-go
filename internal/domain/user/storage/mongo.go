@@ -2,8 +2,10 @@ package user
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/rom6n/create-nft-go/internal/domain/user"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -62,4 +64,16 @@ func (v *mongoUserRepo) CreateUser(ctx context.Context, user *user.User) error {
 
 	_, insertErr := collection.InsertOne(dbCtx, *user)
 	return insertErr
+}
+
+func (v *mongoUserRepo) UpdateUserBalance(ctx context.Context, userUuid uuid.UUID, newNanoTon uint64) error {
+	dbCtx, cancel := v.GetContext(ctx)
+	defer cancel()
+
+	collection := v.GetCollection()
+	_, updErr := collection.UpdateOne(dbCtx, bson.D{{Key: "_id", Value: userUuid}}, bson.D{{Key: "$set", Value: bson.D{{Key: "nano_ton", Value: newNanoTon}}}})
+	if updErr != nil {
+		return fmt.Errorf("error update user uuid %v's balance: %v", userUuid, updErr)
+	}
+	return nil
 }

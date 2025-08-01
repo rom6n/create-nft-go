@@ -1,4 +1,4 @@
-package contractutils
+package generalcontractutils
 
 import (
 	"github.com/xssnick/tonutils-go/address"

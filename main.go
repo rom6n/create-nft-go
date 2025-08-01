@@ -9,16 +9,20 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/joho/godotenv"
-	nftcollectionrepo "github.com/rom6n/create-nft-go/internal/domain/nftCollection/storage"
+	nftcollectionrepo "github.com/rom6n/create-nft-go/internal/domain/nft_collection/storage"
 	userRepo "github.com/rom6n/create-nft-go/internal/domain/user/storage"
 	walletRepo "github.com/rom6n/create-nft-go/internal/domain/wallet/storage"
 	"github.com/rom6n/create-nft-go/internal/ports/http/api/ton"
 	"github.com/rom6n/create-nft-go/internal/ports/http/handler"
-	nftcollectionservice "github.com/rom6n/create-nft-go/internal/service/nftCollectionService"
-	userservice "github.com/rom6n/create-nft-go/internal/service/userService"
-	walletservice "github.com/rom6n/create-nft-go/internal/service/walletService"
+	deploynftcollection "github.com/rom6n/create-nft-go/internal/service/deploy_nft_collection"
+	nftcollectionservice "github.com/rom6n/create-nft-go/internal/service/nft_collection_service"
+	userservice "github.com/rom6n/create-nft-go/internal/service/user_service"
+	walletservice "github.com/rom6n/create-nft-go/internal/service/wallet_service"
 	"github.com/rom6n/create-nft-go/internal/storage"
-	"github.com/rom6n/create-nft-go/internal/util/tonutil"
+	marketutils "github.com/rom6n/create-nft-go/internal/utils/contract_utils/market_utils"
+	nftcollectionutils "github.com/rom6n/create-nft-go/internal/utils/contract_utils/nft_collection_utils"
+	nftitemutils "github.com/rom6n/create-nft-go/internal/utils/contract_utils/nft_item_utils"
+	"github.com/rom6n/create-nft-go/internal/utils/tonutil"
 )
 
 func main() {
@@ -27,11 +31,20 @@ func main() {
 		log.Fatal("‼️ Error loading .env file")
 	}
 
+	// ---------------------------------- Init -----------------------------------------
+
 	privateKey := tonutil.GetTestPrivateKey()
 	liteClient, liteclientApi := tonutil.GetLiteClient(ctx)
+	marketplaceContractAddress := marketutils.GetMarketplaceContractAddress()
+	nftCollectionContractCode := nftcollectionutils.GetNftCollectionContractCode()
+	nftItemContractCode := nftitemutils.GetNftItemContractCode()
+	marketplaceContractCode := marketutils.GetMarketplaceContractCode()
+	tonapiClient := ton.NewTonapiClient()
 
 	databaseClient := storage.NewMongoClient()
 	defer databaseClient.Disconnect(ctx)
+
+	// ---------------------------------- Repo -------------------------------------------
 
 	walletRepo := walletRepo.NewWalletRepo(databaseClient, walletRepo.WalletRepoCfg{
 		DBName:         "create-nft-tma",
@@ -53,10 +66,31 @@ func main() {
 
 	userServiceRepo := userservice.New(userRepo)
 
-	tonapiClient := ton.NewTonapiClient()
-	tonApiRepository := ton.NewTonApiRepository(tonapiClient, 30*time.Second)
+	deployNftCollectionServiceRepo := deploynftcollection.New(deploynftcollection.DeployNftCollectionServiceCfg{
+		NftCollectionRepo:          nftCollectionRepo,
+		UserRepo:                   userRepo,
+		PrivateKey:                 privateKey,
+		LiteClient:                 liteClient,
+		LiteclientApi:              liteclientApi,
+		MarketplaceContractAddress: marketplaceContractAddress,
+		NftCollectionContractCode:  nftCollectionContractCode,
+		NftItemContractCode:        nftItemContractCode,
+	})
 
-	walletServiceRepo := walletservice.New(tonApiRepository, walletRepo)
+	nftCollectionServiceRepo := nftcollectionservice.New(nftcollectionservice.NftCollectionServiceCfg{
+		NftCollectionRepo:       nftCollectionRepo,
+		UserRepo:                userRepo,
+		PrivateKey:              privateKey,
+		LiteClient:              liteClient,
+		LiteclientApi:           liteclientApi,
+		MarketplaceContractCode: marketplaceContractCode,
+	})
+
+	tonApiRepo := ton.NewTonApiRepo(tonapiClient, 30*time.Second)
+
+	walletServiceRepo := walletservice.New(tonApiRepo, walletRepo)
+
+	// -------------------------------- Handlers -----------------------------------------------
 
 	WalletHandler := handler.WalletHandler{
 		WalletServiceRepo: walletServiceRepo,
@@ -67,8 +101,11 @@ func main() {
 	}
 
 	NftCollectionHandler := handler.NftCollectionHandler{
-		NftCollectionService: nftcollectionservice.New(nftCollectionRepo, userRepo, privateKey, liteClient, liteclientApi),
+		NftCollectionService:       nftCollectionServiceRepo,
+		DeployNftCollectionService: deployNftCollectionServiceRepo,
 	}
+
+	// ------------------------------- App & Routes --------------------------------------
 
 	app := fiber.New(fiber.Config{
 		JSONEncoder: json.Marshal,

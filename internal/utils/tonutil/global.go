@@ -42,7 +42,7 @@ func GetLiteClient(ctx context.Context) (*liteclient.ConnectionPool, ton.APIClie
 func GetTestPrivateKey() ed25519.PrivateKey {
 	seedStr := os.Getenv("TEST_PRIVATE_KEY_SEED")
 	if seedStr == "" {
-		log.Fatalln("TEST_PRIVATE_KEY_SEED must be set")
+		log.Fatalln("Add TEST_PRIVATE_KEY_SEED to .env")
 	}
 
 	if len(seedStr) != ed25519.SeedSize {

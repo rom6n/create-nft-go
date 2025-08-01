@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
-	walletservice "github.com/rom6n/create-nft-go/internal/service/walletService"
+	walletservice "github.com/rom6n/create-nft-go/internal/service/wallet_service"
 )
 
 type WalletHandler struct {

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	nftcollection "github.com/rom6n/create-nft-go/internal/domain/nftCollection"
+	nftcollection "github.com/rom6n/create-nft-go/internal/domain/nft_collection"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )

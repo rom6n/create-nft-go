@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/rom6n/create-nft-go/internal/service/userService"
+	"github.com/rom6n/create-nft-go/internal/service/user_service"
 )
 
 type UserHandler struct {
