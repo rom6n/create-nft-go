@@ -1,6 +1,9 @@
-package nft
+package nftitem
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+	"github.com/xssnick/tonutils-go/address"
+)
 
 type Attribute struct {
 	TraitType string `bson:"trait_type" json:"trait_type"`
@@ -15,11 +18,18 @@ type NftItemMetadata struct {
 	ExternalUrl string      `bson:"external_url" json:"external_url"`
 }
 
+type DeployNftItemCfg struct {
+	OwnerAddress   *address.Address
+	Content        string
+	ForwardAmount  uint64
+	ForwardMessage string
+}
+
 type NftItem struct {
 	Address           string          `bson:"_id" json:"address"`
 	Index             int64           `bson:"index" json:"index"`
 	CollectionAddress string          `bson:"collection_address" json:"collection_address"`
 	CollectionName    string          `bson:"collection_name" json:"collection_name"`
-	Owner             uuid.UUID          `bson:"owner" json:"owner"`
+	Owner             uuid.UUID       `bson:"owner" json:"owner"`
 	Metadata          NftItemMetadata `bson:"metadata" json:"metadata"` // под вопросом как метадата будет приходить
 }

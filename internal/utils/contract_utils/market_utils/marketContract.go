@@ -46,13 +46,13 @@ func GetMarketplaceContractDeployData(seqno, subwallet int32, publicKey []byte) 
 		EndCell()
 }
 
-func PackMessageByMarketplaceContract(privateKey ed25519.PrivateKey, validUntil int64, seqno *big.Int, mode uint64, deployMsg *cell.Cell) *cell.Cell {
+func PackMessageToMarketplaceContract(privateKey ed25519.PrivateKey, validUntil int64, seqno *big.Int, mode uint64, msgToSend *cell.Cell) *cell.Cell {
 	msgSigned := cell.BeginCell().
 		MustStoreUInt(uint64(1947320581), 32).
 		MustStoreUInt(uint64(validUntil), 64).
 		MustStoreUInt(seqno.Uint64(), 32).
 		MustStoreUInt(mode, 8).
-		MustStoreRef(deployMsg).
+		MustStoreRef(msgToSend).
 		EndCell().
 		Sign(privateKey)
 
@@ -62,7 +62,7 @@ func PackMessageByMarketplaceContract(privateKey ed25519.PrivateKey, validUntil 
 		MustStoreUInt(uint64(validUntil), 64).
 		MustStoreUInt(seqno.Uint64(), 32).
 		MustStoreUInt(mode, 8).
-		MustStoreRef(deployMsg).
+		MustStoreRef(msgToSend).
 		EndCell()
 
 	return msg

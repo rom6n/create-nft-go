@@ -21,7 +21,7 @@ type NftCollection struct {
 }
 
 type DeployCollectionCfg struct {
-	OwnerAddress             string
+	OwnerAddress      string
 	CommonContent     string
 	CollectionContent string
 	RoyaltyDividend   uint16

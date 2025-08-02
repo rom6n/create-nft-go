@@ -109,14 +109,14 @@ func (v *deployNftCollectionServiceRepo) DeployNftCollection(ctx context.Context
 
 	validUntil := time.Now().Add(1 * time.Minute).Unix()
 
-	msgData := marketutils.PackMessageByMarketplaceContract(v.PrivateKey, validUntil, seqno, 1, deployMsg)
+	msgData := marketutils.PackMessageToMarketplaceContract(v.PrivateKey, validUntil, seqno, 1, deployMsg)
 
 	nftCollectionMetadata, metadataErr := nftcollectionutils.GetNftCollectionMetadataByLink(deployCfg.CollectionContent)
 	if metadataErr != nil {
 		return &nftcollection.NftCollection{}, metadataErr
 	}
 
-	nftCollection := nftcollection.New(toAddress.String(), ownerAccount.UUID, &nftCollectionMetadata)
+	nftCollection := nftcollection.New(toAddress.String(), ownerAccount.UUID, nftCollectionMetadata)
 
 	if deployCfg.OwnerAddress == marketAddress.String() {
 		createErr := v.NftCollectionRepo.CreateCollection(svcCtx, nftCollection, ownerAccount.UUID)

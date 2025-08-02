@@ -10,6 +10,7 @@ import (
 
 	"github.com/goccy/go-json"
 	nftcollection "github.com/rom6n/create-nft-go/internal/domain/nft_collection"
+	nftitem "github.com/rom6n/create-nft-go/internal/domain/nft_item"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
@@ -33,25 +34,28 @@ func GetNftCollectionContractCode() *cell.Cell {
 	return code
 }
 
-func GetNftCollectionMetadataByLink(link string) (nftcollection.NftCollectionMetadata, error) {
+func GetNftCollectionMetadataByLink(link string) (*nftcollection.NftCollectionMetadata, error) {
 	body, metadataErr := http.Get(link)
+	nilNftCollectionMetadata := &nftcollection.NftCollectionMetadata{}
+
 	if metadataErr != nil {
-		return nftcollection.NftCollectionMetadata{}, metadataErr
+		return nilNftCollectionMetadata, metadataErr
 	}
-	defer body.Body.Close()
 
 	rawNftCollectionMetadata, err := io.ReadAll(body.Body)
+	defer body.Body.Close()
+
 	if err != nil {
-		return nftcollection.NftCollectionMetadata{}, fmt.Errorf("reading body failed: %w", err)
+		return nilNftCollectionMetadata, fmt.Errorf("reading body failed: %w", err)
 	}
 
 	var parseTo nftcollection.NftCollectionMetadata
 
 	if unmarshErr := json.Unmarshal(rawNftCollectionMetadata, &parseTo); unmarshErr != nil {
-		return nftcollection.NftCollectionMetadata{}, unmarshErr
+		return nilNftCollectionMetadata, unmarshErr
 	}
 
-	return parseTo, nil
+	return &parseTo, nil
 }
 
 func PackOffchainContentForNftCollection(collectionContent string, commonContent string) *cell.Cell {
@@ -87,5 +91,34 @@ func PackNftCollectionData(ownerAddress string, content *cell.Cell, nftItemCode 
 		MustStoreRef(content).
 		MustStoreRef(nftItemCode).
 		MustStoreRef(royaltyParams).
+		EndCell()
+}
+
+func PackDeployNftItemMessage(nftCcollectionAddress *address.Address, nextItemIndex uint64, cfg nftitem.DeployNftItemCfg) *cell.Cell {
+	fwdMsg := cell.BeginCell().
+		MustStoreUInt(0, 32).
+		MustStoreStringSnake(cfg.ForwardMessage).
+		EndCell()
+
+	content := cell.BeginCell().MustStoreStringSnake(cfg.Content).EndCell()
+
+	initContent := cell.BeginCell().
+		MustStoreAddr(cfg.OwnerAddress).
+		MustStoreRef(content).
+		MustStoreCoins(cfg.ForwardAmount).
+		MustStoreInt(1, 1).
+		MustStoreRef(fwdMsg).
+		EndCell()
+
+	return cell.BeginCell().
+		MustStoreUInt(0x10, 6).
+		MustStoreAddr(nftCcollectionAddress).
+		MustStoreCoins(120000000).
+		MustStoreUInt(0, 1+4+4+64+32+1+1).
+		MustStoreUInt(1, 32).
+		MustStoreUInt(0, 64).
+		MustStoreUInt(nextItemIndex, 64).
+		MustStoreCoins(110000000).
+		MustStoreRef(initContent).
 		EndCell()
 }
