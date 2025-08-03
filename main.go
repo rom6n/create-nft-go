@@ -10,11 +10,13 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/joho/godotenv"
 	nftcollectionrepo "github.com/rom6n/create-nft-go/internal/domain/nft_collection/storage"
+	nftitemRepo "github.com/rom6n/create-nft-go/internal/domain/nft_item/storage"
 	userRepo "github.com/rom6n/create-nft-go/internal/domain/user/storage"
 	walletRepo "github.com/rom6n/create-nft-go/internal/domain/wallet/storage"
 	"github.com/rom6n/create-nft-go/internal/ports/http/api/ton"
 	"github.com/rom6n/create-nft-go/internal/ports/http/handler"
 	deploynftcollection "github.com/rom6n/create-nft-go/internal/service/deploy_nft_collection"
+	mintnftitem "github.com/rom6n/create-nft-go/internal/service/mint_nft_item"
 	nftcollectionservice "github.com/rom6n/create-nft-go/internal/service/nft_collection_service"
 	userservice "github.com/rom6n/create-nft-go/internal/service/user_service"
 	walletservice "github.com/rom6n/create-nft-go/internal/service/wallet_service"
@@ -75,6 +77,7 @@ func main() {
 		MarketplaceContractAddress: marketplaceContractAddress,
 		NftCollectionContractCode:  nftCollectionContractCode,
 		NftItemContractCode:        nftItemContractCode,
+		Timeout:                    30 * time.Second,
 	})
 
 	nftCollectionServiceRepo := nftcollectionservice.New(nftcollectionservice.NftCollectionServiceCfg{
@@ -86,23 +89,45 @@ func main() {
 		MarketplaceContractCode: marketplaceContractCode,
 	})
 
+	nftItemRepo := nftitemRepo.NewNftItemRepo(databaseClient, nftitemRepo.NftItemRepoCfg{
+		DBName:         "create-nft-tma",
+		CollectionName: "nft-items",
+		Timeout:        15 * time.Second,
+	})
+
+	mintNftItemServiceRepo := mintnftitem.New(mintnftitem.MintNftItemServiceCfg{
+		NftCollectionRepo:          nftCollectionRepo,
+		NftItemRepo:                nftItemRepo,
+		UserRepo:                   userRepo,
+		NftItemCode:                nftItemContractCode,
+		LiteClient:                 liteClient,
+		LiteclientApi:              liteclientApi,
+		MarketplaceContractAddress: marketplaceContractAddress,
+		PrivateKey:                 privateKey,
+		Timeout:                    30 * time.Second,
+	})
+
 	tonApiRepo := ton.NewTonApiRepo(tonapiClient, 30*time.Second)
 
 	walletServiceRepo := walletservice.New(tonApiRepo, walletRepo)
 
 	// -------------------------------- Handlers -----------------------------------------------
 
-	WalletHandler := handler.WalletHandler{
+	walletHandler := handler.WalletHandler{
 		WalletServiceRepo: walletServiceRepo,
 	}
 
-	UserHandler := handler.UserHandler{
+	userHandler := handler.UserHandler{
 		UserService: userServiceRepo,
 	}
 
-	NftCollectionHandler := handler.NftCollectionHandler{
+	nftCollectionHandler := handler.NftCollectionHandler{
 		NftCollectionService:       nftCollectionServiceRepo,
 		DeployNftCollectionService: deployNftCollectionServiceRepo,
+	}
+
+	nftItemHandler := handler.NftItemHandler{
+		MintNftItemService: mintNftItemServiceRepo,
 	}
 
 	// ------------------------------- App & Routes --------------------------------------
@@ -126,16 +151,19 @@ func main() {
 	walletApi := api.Group("/wallet")
 	userApi := api.Group("/user")
 	nftCollectionApi := api.Group("/collection")
+	nftItemApi := api.Group("/nft")
 
-	walletApi.Get("/get-wallet-data", WalletHandler.GetWalletData())
+	walletApi.Get("/get-wallet-data", walletHandler.GetWalletData())
 
-	walletApi.Get("/refresh-wallet-nft-items", WalletHandler.RefreshWalletNftItems()) // В будущем поменять на PUT
+	walletApi.Get("/refresh-wallet-nft-items", walletHandler.RefreshWalletNftItems()) // В будущем поменять на PUT
 
-	userApi.Get("/get-user-data", UserHandler.GetUserData())
+	userApi.Get("/get-user-data", userHandler.GetUserData())
 
-	nftCollectionApi.Get("/deploy-market", NftCollectionHandler.DeployMarketContract())
+	nftCollectionApi.Get("/deploy-market", nftCollectionHandler.DeployMarketContract())
 
-	nftCollectionApi.Get("/deploy-collection-test", NftCollectionHandler.DeployNftCollection())
+	nftCollectionApi.Get("/deploy-collection-test", nftCollectionHandler.DeployNftCollection())
+
+	nftItemApi.Get("/mint-nft-test", nftItemHandler.MintNftItem())
 
 	app.Listen(":2000")
 }

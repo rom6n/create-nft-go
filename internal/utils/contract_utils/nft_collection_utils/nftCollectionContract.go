@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/goccy/go-json"
 	nftcollection "github.com/rom6n/create-nft-go/internal/domain/nft_collection"
@@ -34,7 +35,7 @@ func GetNftCollectionContractCode() *cell.Cell {
 	return code
 }
 
-func GetNftCollectionMetadataByLink(link string) (*nftcollection.NftCollectionMetadata, error) {
+func GetNftCollectionOffchainMetadata(link string) (*nftcollection.NftCollectionMetadata, error) {
 	body, metadataErr := http.Get(link)
 	nilNftCollectionMetadata := &nftcollection.NftCollectionMetadata{}
 
@@ -76,17 +77,17 @@ func PackOffchainContentForNftCollection(collectionContent string, commonContent
 	return content
 }
 
-func PackNftCollectionRoyaltyParams(royaltyDividend uint16, royaltyDivisor uint16, royaltyAddress string) *cell.Cell {
+func PackNftCollectionRoyaltyParams(royaltyDividend uint16, royaltyDivisor uint16, royaltyAddress *address.Address) *cell.Cell {
 	return cell.BeginCell().
 		MustStoreUInt(uint64(royaltyDividend), 16).
 		MustStoreUInt(uint64(royaltyDivisor), 16).
-		MustStoreAddr(address.MustParseAddr(royaltyAddress)).
+		MustStoreAddr(royaltyAddress).
 		EndCell()
 }
 
-func PackNftCollectionData(ownerAddress string, content *cell.Cell, nftItemCode *cell.Cell, royaltyParams *cell.Cell) *cell.Cell {
+func PackNftCollectionData(ownerAddress *address.Address, content *cell.Cell, nftItemCode *cell.Cell, royaltyParams *cell.Cell) *cell.Cell {
 	return cell.BeginCell().
-		MustStoreAddr(address.MustParseAddr(ownerAddress)).
+		MustStoreAddr(ownerAddress).
 		MustStoreUInt(1, 64).
 		MustStoreRef(content).
 		MustStoreRef(nftItemCode).
@@ -94,21 +95,28 @@ func PackNftCollectionData(ownerAddress string, content *cell.Cell, nftItemCode 
 		EndCell()
 }
 
-func PackDeployNftItemMessage(nftCcollectionAddress *address.Address, nextItemIndex uint64, cfg nftitem.DeployNftItemCfg) *cell.Cell {
-	fwdMsg := cell.BeginCell().
-		MustStoreUInt(0, 32).
-		MustStoreStringSnake(cfg.ForwardMessage).
-		EndCell()
-
+func PackDeployNftItemMessage(nftCcollectionAddress *address.Address, nextItemIndex uint64, cfg nftitem.MintNftItemCfg) *cell.Cell {
+	cfg.Content = strings.TrimPrefix(cfg.Content, "https://")
 	content := cell.BeginCell().MustStoreStringSnake(cfg.Content).EndCell()
 
 	initContent := cell.BeginCell().
 		MustStoreAddr(cfg.OwnerAddress).
-		MustStoreRef(content).
-		MustStoreCoins(cfg.ForwardAmount).
-		MustStoreInt(1, 1).
-		MustStoreRef(fwdMsg).
-		EndCell()
+		MustStoreRef(content)
+
+	if cfg.ForwardAmount > 100000 {
+		initContent.MustStoreCoins(cfg.ForwardAmount)
+
+		if cfg.ForwardMessage != "" {
+			fwdMsg := cell.BeginCell().
+				MustStoreUInt(0, 32).
+				MustStoreStringSnake(cfg.ForwardMessage).
+				EndCell()
+
+			initContent.
+				MustStoreInt(1, 1).
+				MustStoreRef(fwdMsg)
+		}
+	}
 
 	return cell.BeginCell().
 		MustStoreUInt(0x10, 6).
@@ -119,6 +127,6 @@ func PackDeployNftItemMessage(nftCcollectionAddress *address.Address, nextItemIn
 		MustStoreUInt(0, 64).
 		MustStoreUInt(nextItemIndex, 64).
 		MustStoreCoins(110000000).
-		MustStoreRef(initContent).
+		MustStoreRef(initContent.EndCell()).
 		EndCell()
 }

@@ -32,7 +32,7 @@ func GetNftItemContractCode() *cell.Cell {
 	return code
 }
 
-func GetNftItemMetadataByLin(link string) (*nftitem.NftItemMetadata, error) {
+func GetNftItemOffchainMetadata(link string) (*nftitem.NftItemMetadata, error) {
 	body, metadataErr := http.Get(link)
 	nilNftItemMetadata := &nftitem.NftItemMetadata{}
 

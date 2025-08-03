@@ -1,6 +1,9 @@
 package nftcollection
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+	"github.com/xssnick/tonutils-go/address"
+)
 
 type NftCollectionMetadata struct {
 	Name         string   `bson:"name" json:"name"`
@@ -21,7 +24,7 @@ type NftCollection struct {
 }
 
 type DeployCollectionCfg struct {
-	OwnerAddress      string
+	OwnerAddress      *address.Address
 	CommonContent     string
 	CollectionContent string
 	RoyaltyDividend   uint16

@@ -2,13 +2,11 @@ package nftcollection
 
 import (
 	"context"
-
-	"github.com/google/uuid"
 )
 
 type NftCollectionRepository interface {
-	CreateCollection(ctx context.Context, collection *NftCollection, ownerUuid uuid.UUID) error
-	DeleteCollection(ctx context.Context, collectionAddress string) error
+	CreateNftCollection(ctx context.Context, collection *NftCollection) error
+	DeleteNftCollection(ctx context.Context, collectionAddress string) error
+	GetNftCollectionByAddress(ctx context.Context, collectionAddress string) (*NftCollection, error)
 }
 
-//GetCollectionByOwnerUuid(ctx context.Context, ownerUuid uuid.UUID)

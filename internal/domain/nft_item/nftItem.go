@@ -18,7 +18,7 @@ type NftItemMetadata struct {
 	ExternalUrl string      `bson:"external_url" json:"external_url"`
 }
 
-type DeployNftItemCfg struct {
+type MintNftItemCfg struct {
 	OwnerAddress   *address.Address
 	Content        string
 	ForwardAmount  uint64
