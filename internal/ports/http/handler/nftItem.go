@@ -16,12 +16,12 @@ type NftItemHandler struct {
 
 func (v *NftItemHandler) MintNftItem() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		ownerWallet, content, fwdAmount, fwdMsg, nftCollectionAddress, ownerID := c.Query("owner-wallet"), c.Query("content"), c.Query("forward-amount"), c.Query("forward-message"), c.Query("nft-collection-address"), c.Query("owner-id")
-		if content == "" || nftCollectionAddress == "" || ownerID == "" {
-			return c.Status(fiber.StatusBadRequest).SendString("content link, owner id and nft collection address are required")
+		ownerWallet, content, fwdAmount, fwdMsg, nftCollectionAddress, ownerID, isTest := c.Query("owner-wallet"), c.Query("content"), c.Query("forward-amount"), c.Query("forward-message"), c.Query("nft-collection-address"), c.Query("owner-id"), c.Query("is-testnet")
+		if content == "" || nftCollectionAddress == "" || ownerID == "" || isTest == "" {
+			return c.Status(fiber.StatusBadRequest).SendString("content link, is testnet, owner id and nft collection address are required")
 		}
 
-		// ?owner-wallet=0QDU46qYz4rHAJhszrW9w6imF8p4Cw5dS1GpPTcJ9vqNSmnf&owner-id=5003727541&content=https://rom6n.github.io/mc1f/nft-c1-item-2.json&forward-amount=&forward-message=&nft-collection-address=EQBNQ_nUxOprp6Ak9FUo5HiM5XrW95u1y1QAL4659zi8rWVD
+		// ?owner-wallet=0QDU46qYz4rHAJhszrW9w6imF8p4Cw5dS1GpPTcJ9vqNSmnf&owner-id=5003727541&content=https://rom6n.github.io/mc1f/nft-c1-item-2.json&forward-amount=&forward-message=&nft-collection-address=EQBNQ_nUxOprp6Ak9FUo5HiM5XrW95u1y1QAL4659zi8rWVD&is-testnet=true
 
 		var ownerAddress *address.Address
 		if ownerWallet != "" {
@@ -31,6 +31,11 @@ func (v *NftItemHandler) MintNftItem() fiber.Handler {
 			} else {
 				ownerAddress = ownerAddress2
 			}
+		}
+
+		isTestnet, parseBoolErr := strconv.ParseBool(isTest)
+		if parseBoolErr != nil {
+			c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Error parse is-testnet to bool: %v", parseBoolErr))
 		}
 
 		nftCollectionAddr, parseAddrErr := address.ParseAddr(nftCollectionAddress)
@@ -59,7 +64,7 @@ func (v *NftItemHandler) MintNftItem() fiber.Handler {
 			ForwardMessage: fwdMsg,
 		}
 
-		nftItem, mintErr := v.MintNftItemService.MintNftItem(c.Context(), nftCollectionAddr, mintCfg, ownerIDInt64)
+		nftItem, mintErr := v.MintNftItemService.MintNftItem(c.Context(), nftCollectionAddr, mintCfg, ownerIDInt64, isTestnet)
 		if mintErr != nil {
 			return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("error minting nft item: %v", mintErr))
 		}

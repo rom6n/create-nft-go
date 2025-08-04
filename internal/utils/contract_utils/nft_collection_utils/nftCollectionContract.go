@@ -37,23 +37,22 @@ func GetNftCollectionContractCode() *cell.Cell {
 
 func GetNftCollectionOffchainMetadata(link string) (*nftcollection.NftCollectionMetadata, error) {
 	body, metadataErr := http.Get(link)
-	nilNftCollectionMetadata := &nftcollection.NftCollectionMetadata{}
 
 	if metadataErr != nil {
-		return nilNftCollectionMetadata, metadataErr
+		return nil, metadataErr
 	}
 
 	rawNftCollectionMetadata, err := io.ReadAll(body.Body)
 	defer body.Body.Close()
 
 	if err != nil {
-		return nilNftCollectionMetadata, fmt.Errorf("reading body failed: %w", err)
+		return nil, fmt.Errorf("reading body failed: %w", err)
 	}
 
 	var parseTo nftcollection.NftCollectionMetadata
 
 	if unmarshErr := json.Unmarshal(rawNftCollectionMetadata, &parseTo); unmarshErr != nil {
-		return nilNftCollectionMetadata, unmarshErr
+		return nil, unmarshErr
 	}
 
 	return &parseTo, nil
@@ -98,13 +97,15 @@ func PackNftCollectionData(ownerAddress *address.Address, content *cell.Cell, nf
 func PackDeployNftItemMessage(nftCcollectionAddress *address.Address, nextItemIndex uint64, cfg nftitem.MintNftItemCfg) *cell.Cell {
 	cfg.Content = strings.TrimPrefix(cfg.Content, "https://")
 	content := cell.BeginCell().MustStoreStringSnake(cfg.Content).EndCell()
+	amount := uint64(60000000)
 
 	initContent := cell.BeginCell().
 		MustStoreAddr(cfg.OwnerAddress).
 		MustStoreRef(content)
 
-	if cfg.ForwardAmount > 100000 {
+	if cfg.ForwardAmount > 1000000 {
 		initContent.MustStoreCoins(cfg.ForwardAmount)
+		amount += cfg.ForwardAmount
 
 		if cfg.ForwardMessage != "" {
 			fwdMsg := cell.BeginCell().
@@ -121,12 +122,12 @@ func PackDeployNftItemMessage(nftCcollectionAddress *address.Address, nextItemIn
 	return cell.BeginCell().
 		MustStoreUInt(0x10, 6).
 		MustStoreAddr(nftCcollectionAddress).
-		MustStoreCoins(120000000).
+		MustStoreCoins(amount).
 		MustStoreUInt(0, 1+4+4+64+32+1+1).
 		MustStoreUInt(1, 32).
 		MustStoreUInt(0, 64).
 		MustStoreUInt(nextItemIndex, 64).
-		MustStoreCoins(110000000).
+		MustStoreCoins(amount - 10000000). // -0.01 TON
 		MustStoreRef(initContent.EndCell()).
 		EndCell()
 }

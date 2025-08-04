@@ -35,9 +35,11 @@ func main() {
 
 	// ---------------------------------- Init -----------------------------------------
 
-	privateKey := tonutil.GetTestPrivateKey()
-	liteClient, liteclientApi := tonutil.GetLiteClient(ctx)
-	marketplaceContractAddress := marketutils.GetMarketplaceContractAddress()
+	privateKey := tonutil.GetPrivateKey()
+	testnetLiteClient, testnetLiteApi := tonutil.GetTestnetLiteClient(ctx)
+	mainnetLiteClient, mainnetLiteApi := tonutil.GetMainnetLiteClient(ctx)
+	testnetMarketplaceContractAddress := marketutils.GetTestnetMarketplaceContractAddress()
+	mainnetMarketplaceContractAddress := marketutils.GetMainnetMarketplaceContractAddress()
 	nftCollectionContractCode := nftcollectionutils.GetNftCollectionContractCode()
 	nftItemContractCode := nftitemutils.GetNftItemContractCode()
 	marketplaceContractCode := marketutils.GetMarketplaceContractCode()
@@ -69,23 +71,26 @@ func main() {
 	userServiceRepo := userservice.New(userRepo)
 
 	deployNftCollectionServiceRepo := deploynftcollection.New(deploynftcollection.DeployNftCollectionServiceCfg{
-		NftCollectionRepo:          nftCollectionRepo,
-		UserRepo:                   userRepo,
-		PrivateKey:                 privateKey,
-		LiteClient:                 liteClient,
-		LiteclientApi:              liteclientApi,
-		MarketplaceContractAddress: marketplaceContractAddress,
-		NftCollectionContractCode:  nftCollectionContractCode,
-		NftItemContractCode:        nftItemContractCode,
-		Timeout:                    30 * time.Second,
+		NftCollectionRepo:                 nftCollectionRepo,
+		UserRepo:                          userRepo,
+		PrivateKey:                        privateKey,
+		TestnetLiteClient:                 testnetLiteClient,
+		MainnetLiteClient:                 mainnetLiteClient,
+		TestnetLiteApi:                    testnetLiteApi,
+		MainnetLiteApi:                    mainnetLiteApi,
+		TestnetMarketplaceContractAddress: testnetMarketplaceContractAddress,
+		MainnetMarketplaceContractAddress: mainnetMarketplaceContractAddress,
+		NftCollectionContractCode:         nftCollectionContractCode,
+		NftItemContractCode:               nftItemContractCode,
+		Timeout:                           30 * time.Second,
 	})
 
 	nftCollectionServiceRepo := nftcollectionservice.New(nftcollectionservice.NftCollectionServiceCfg{
 		NftCollectionRepo:       nftCollectionRepo,
 		UserRepo:                userRepo,
 		PrivateKey:              privateKey,
-		LiteClient:              liteClient,
-		LiteclientApi:           liteclientApi,
+		LiteClient:              testnetLiteClient,
+		LiteclientApi:           testnetLiteApi,
 		MarketplaceContractCode: marketplaceContractCode,
 	})
 
@@ -96,15 +101,18 @@ func main() {
 	})
 
 	mintNftItemServiceRepo := mintnftitem.New(mintnftitem.MintNftItemServiceCfg{
-		NftCollectionRepo:          nftCollectionRepo,
-		NftItemRepo:                nftItemRepo,
-		UserRepo:                   userRepo,
-		NftItemCode:                nftItemContractCode,
-		LiteClient:                 liteClient,
-		LiteclientApi:              liteclientApi,
-		MarketplaceContractAddress: marketplaceContractAddress,
-		PrivateKey:                 privateKey,
-		Timeout:                    30 * time.Second,
+		NftCollectionRepo:                 nftCollectionRepo,
+		NftItemRepo:                       nftItemRepo,
+		UserRepo:                          userRepo,
+		NftItemCode:                       nftItemContractCode,
+		TestnetLiteClient:                 testnetLiteClient,
+		MainnetLiteClient:                 mainnetLiteClient,
+		TestnetLiteApi:                    testnetLiteApi,
+		MainnetLiteApi:                    mainnetLiteApi,
+		TestnetMarketplaceContractAddress: testnetMarketplaceContractAddress,
+		MainnetMarketplaceContractAddress: mainnetMarketplaceContractAddress,
+		PrivateKey:                        privateKey,
+		Timeout:                           30 * time.Second,
 	})
 
 	tonApiRepo := ton.NewTonApiRepo(tonapiClient, 30*time.Second)

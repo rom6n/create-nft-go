@@ -30,10 +30,18 @@ func GetMarketplaceContractCode() *cell.Cell {
 	return code
 }
 
-func GetMarketplaceContractAddress() *address.Address {
-	marketplaceContractAddress := os.Getenv("MARKETPLACE_CONTRACT_ADDRESS")
+func GetTestnetMarketplaceContractAddress() *address.Address {
+	marketplaceContractAddress := os.Getenv("TESTNET_MARKETPLACE_CONTRACT_ADDRESS")
 	if marketplaceContractAddress == "" {
-		log.Fatalln("Market contract address is not in .env")
+		log.Fatalln("testnet Market contract address is not in .env")
+	}
+	return address.MustParseAddr(marketplaceContractAddress)
+}
+
+func GetMainnetMarketplaceContractAddress() *address.Address {
+	marketplaceContractAddress := os.Getenv("MAINNET_MARKETPLACE_CONTRACT_ADDRESS")
+	if marketplaceContractAddress == "" {
+		log.Fatalln("mainnet Market contract address is not in .env")
 	}
 	return address.MustParseAddr(marketplaceContractAddress)
 }

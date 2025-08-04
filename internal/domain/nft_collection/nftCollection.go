@@ -21,6 +21,7 @@ type NftCollection struct {
 	NextItemIndex int64                 `bson:"next_item_index" json:"next_item_index"`
 	Owner         uuid.UUID             `bson:"owner" json:"owner"`
 	Metadata      NftCollectionMetadata `bson:"metadata" json:"metadata"` // под вопросом как метадата будет приходить
+	IsTestnet     bool                  `bson:"is_testnet" json:"is_testnet"`
 }
 
 type DeployCollectionCfg struct {
@@ -33,11 +34,12 @@ type DeployCollectionCfg struct {
 	// nft item code
 }
 
-func New(address string, ownerUuid uuid.UUID, metadata *NftCollectionMetadata) *NftCollection {
+func New(address string, ownerUuid uuid.UUID, metadata *NftCollectionMetadata, isTestnet bool) *NftCollection {
 	return &NftCollection{
 		Address:       address,
 		NextItemIndex: 1,
 		Owner:         ownerUuid,
 		Metadata:      *metadata,
+		IsTestnet:     isTestnet,
 	}
 }

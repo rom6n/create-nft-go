@@ -20,31 +20,37 @@ import (
 )
 
 type DeployNftCollectionServiceRepository interface {
-	DeployNftCollection(ctx context.Context, deployCfg nftcollection.DeployCollectionCfg, ownerID int64) (*nftcollection.NftCollection, error)
+	DeployNftCollection(ctx context.Context, deployCfg nftcollection.DeployCollectionCfg, ownerID int64, isTestnet bool) (*nftcollection.NftCollection, error)
 }
 
 type deployNftCollectionServiceRepo struct {
-	nftCollectionRepo          nftcollection.NftCollectionRepository
-	userRepo                   user.UserRepository
-	privateKey                 ed25519.PrivateKey
-	liteClient                 *liteclient.ConnectionPool
-	liteclientApi              ton.APIClientWrapped
-	marketplaceContractAddress *address.Address
-	nftCollectionContractCode  *cell.Cell
-	nftItemContractCode        *cell.Cell
-	timeout                    time.Duration
+	nftCollectionRepo                 nftcollection.NftCollectionRepository
+	userRepo                          user.UserRepository
+	privateKey                        ed25519.PrivateKey
+	testnetLiteClient                 *liteclient.ConnectionPool
+	mainnetLiteClient                 *liteclient.ConnectionPool
+	testnetLiteApi                    ton.APIClientWrapped
+	mainnetLiteApi                    ton.APIClientWrapped
+	testnetMarketplaceContractAddress *address.Address
+	mainnetMarketplaceContractAddress *address.Address
+	nftCollectionContractCode         *cell.Cell
+	nftItemContractCode               *cell.Cell
+	timeout                           time.Duration
 }
 
 type DeployNftCollectionServiceCfg struct {
-	NftCollectionRepo          nftcollection.NftCollectionRepository
-	UserRepo                   user.UserRepository
-	PrivateKey                 ed25519.PrivateKey
-	LiteClient                 *liteclient.ConnectionPool
-	LiteclientApi              ton.APIClientWrapped
-	MarketplaceContractAddress *address.Address
-	NftCollectionContractCode  *cell.Cell
-	NftItemContractCode        *cell.Cell
-	Timeout                    time.Duration
+	NftCollectionRepo                 nftcollection.NftCollectionRepository
+	UserRepo                          user.UserRepository
+	PrivateKey                        ed25519.PrivateKey
+	TestnetLiteClient                 *liteclient.ConnectionPool
+	MainnetLiteClient                 *liteclient.ConnectionPool
+	MainnetLiteApi                    ton.APIClientWrapped
+	TestnetLiteApi                    ton.APIClientWrapped
+	TestnetMarketplaceContractAddress *address.Address
+	MainnetMarketplaceContractAddress *address.Address
+	NftCollectionContractCode         *cell.Cell
+	NftItemContractCode               *cell.Cell
+	Timeout                           time.Duration
 }
 
 func New(cfg DeployNftCollectionServiceCfg) DeployNftCollectionServiceRepository {
@@ -52,47 +58,59 @@ func New(cfg DeployNftCollectionServiceCfg) DeployNftCollectionServiceRepository
 		cfg.NftCollectionRepo,
 		cfg.UserRepo,
 		cfg.PrivateKey,
-		cfg.LiteClient,
-		cfg.LiteclientApi,
-		cfg.MarketplaceContractAddress,
+		cfg.TestnetLiteClient,
+		cfg.MainnetLiteClient,
+		cfg.TestnetLiteApi,
+		cfg.MainnetLiteApi,
+		cfg.TestnetMarketplaceContractAddress,
+		cfg.MainnetMarketplaceContractAddress,
 		cfg.NftCollectionContractCode,
 		cfg.NftItemContractCode,
 		cfg.Timeout,
 	}
 }
 
-func (v *deployNftCollectionServiceRepo) DeployNftCollection(ctx context.Context, deployCfg nftcollection.DeployCollectionCfg, ownerID int64) (*nftcollection.NftCollection, error) {
+func (v *deployNftCollectionServiceRepo) DeployNftCollection(ctx context.Context, deployCfg nftcollection.DeployCollectionCfg, ownerID int64, isTestnet bool) (*nftcollection.NftCollection, error) {
 	svcCtx, cancel := context.WithTimeout(ctx, v.timeout)
 	defer cancel()
 
-	marketAddress := v.marketplaceContractAddress
-	client := v.liteClient
-	api := v.liteclientApi
+	marketAddress := v.testnetMarketplaceContractAddress
+	client := v.testnetLiteClient
+	api := v.testnetLiteApi
+
+	if !isTestnet {
+		marketAddress = v.mainnetMarketplaceContractAddress
+		client = v.mainnetLiteClient
+		api = v.mainnetLiteApi
+	}
+
 	apiCtx := client.StickyContext(svcCtx)
 	nanoTonForDeploy := uint64(50000000)
 	nanoTonForFees := uint64(15000000)
-	nilNftCollection := &nftcollection.NftCollection{}
 
 	ownerAccount, userErr := v.userRepo.GetUserByID(svcCtx, ownerID)
 	if userErr != nil {
-		return nilNftCollection, userErr
+		return nil, userErr
 	}
 
 	if ownerAccount.NanoTon < (nanoTonForDeploy + nanoTonForFees) { // return if not enough TON
-		return nilNftCollection, fmt.Errorf("not enough toncoins. Need %v nano ton more", (nanoTonForDeploy + nanoTonForFees - ownerAccount.NanoTon))
+		return nil, fmt.Errorf("not enough toncoins. Need %v nano ton more", (nanoTonForDeploy + nanoTonForFees - ownerAccount.NanoTon))
 	}
 
 	block, chainErr := api.CurrentMasterchainInfo(apiCtx)
 	if chainErr != nil {
-		return nilNftCollection, chainErr
+		return nil, chainErr
 	}
 
 	response, methodErr := api.WaitForBlock(block.SeqNo).RunGetMethod(apiCtx, block, marketAddress, "seqno")
 	if methodErr != nil {
-		return nilNftCollection, methodErr
+		return nil, fmt.Errorf("error getting marketplace contract's seqno: %v", methodErr)
 	}
 
-	seqno := response.MustInt(0)
+	seqno, seqnoErr := response.Int(0)
+	if seqnoErr != nil {
+		return nil, fmt.Errorf("marketplace method seqno returned not a seqno: %v", seqnoErr)
+	}
 
 	content := nftcollectionutils.PackOffchainContentForNftCollection(deployCfg.CollectionContent, deployCfg.CommonContent)
 
@@ -107,6 +125,7 @@ func (v *deployNftCollectionServiceRepo) DeployNftCollection(ctx context.Context
 	stateInit := generalcontractutils.PackStateInit(v.nftCollectionContractCode, dataCell)
 
 	toAddress := generalcontractutils.CalculateAddress(0, stateInit)
+	toAddress.SetTestnetOnly(isTestnet)
 
 	deployMsg := generalcontractutils.PackDeployMessage(toAddress, stateInit)
 
@@ -116,14 +135,14 @@ func (v *deployNftCollectionServiceRepo) DeployNftCollection(ctx context.Context
 
 	nftCollectionMetadata, metadataErr := nftcollectionutils.GetNftCollectionOffchainMetadata(deployCfg.CollectionContent)
 	if metadataErr != nil {
-		return nilNftCollection, metadataErr
+		return nil, metadataErr
 	}
 
-	nftCollection := nftcollection.New(toAddress.String(), ownerAccount.UUID, nftCollectionMetadata)
+	nftCollection := nftcollection.New(toAddress.String(), ownerAccount.UUID, nftCollectionMetadata, isTestnet)
 
 	// reducing the user's balance before deploy
 	if updErr := v.userRepo.UpdateUserBalance(svcCtx, ownerAccount.UUID, ownerAccount.NanoTon-nanoTonForDeploy-nanoTonForFees); updErr != nil {
-		return nilNftCollection, fmt.Errorf("error update user's balance before nft collection mint: %v", updErr)
+		return nil, fmt.Errorf("error update user's balance before nft collection mint: %v", updErr)
 	}
 
 	msg := &tlb.ExternalMessage{
@@ -141,28 +160,28 @@ func (v *deployNftCollectionServiceRepo) DeployNftCollection(ctx context.Context
 			}
 			log.Printf("Error returning %v ton to user after nft collection deploy fail, try: %v\n", nanoTonForDeploy, i)
 			if i == 9 {
-				return nilNftCollection, fmt.Errorf("error returning ton to user & error sending deploy nft collection external message: %v", msgErr)
+				return nil, fmt.Errorf("error returning ton to user & error sending deploy nft collection external message: %v", msgErr)
 			}
 			time.Sleep(1 * time.Second)
 		}
 
-		return nilNftCollection, fmt.Errorf("error sending deploy nft collection external message: %v", msgErr)
+		return nil, fmt.Errorf("error sending deploy nft collection external message: %v", msgErr)
 	}
 
-	if deployCfg.OwnerAddress.Equals(v.marketplaceContractAddress) {
+	if deployCfg.OwnerAddress.Equals(marketAddress) {
 		for i := 0; i < 10; i++ {
 			if createErr := v.nftCollectionRepo.CreateNftCollection(svcCtx, nftCollection); createErr == nil {
 				break
 			}
 			log.Printf("Error adding nft collection to database, try: %v\n", i)
 			if i == 9 {
-				return nilNftCollection, fmt.Errorf("error adding nft collection to database")
+				return nil, fmt.Errorf("error adding nft collection to database")
 			}
 			time.Sleep(1 * time.Second)
 		}
 	}
 
-	log.Printf("NFT COLLECTION DEPLOYED AT ADDRESS: %v\n", toAddress.String())
+	log.Printf("Is Testnet: %v. NFT COLLECTION, DEPLOYED AT ADDRESS: %v\n", isTestnet, toAddress.String())
 
 	return nftCollection, nil
 }

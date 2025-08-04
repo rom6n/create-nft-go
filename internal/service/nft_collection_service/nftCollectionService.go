@@ -63,7 +63,7 @@ func (v *nftCollectionServiceRepo) DeployMarketplaceContract(ctx context.Context
 	msgBody := cell.BeginCell().EndCell()
 	deployedAddr, _, _, deployErr := walletV4.DeployContractWaitTransaction(
 		svcCtx,
-		tlb.MustFromTON("0.07"),
+		tlb.MustFromTON("0.25"),
 		msgBody,
 		v.MarketplaceContractCode,
 		marketutils.GetMarketplaceContractDeployData(0, 1947320581, []byte(v.PrivateKey.Public().(ed25519.PublicKey))),

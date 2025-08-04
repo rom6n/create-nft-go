@@ -34,23 +34,22 @@ func GetNftItemContractCode() *cell.Cell {
 
 func GetNftItemOffchainMetadata(link string) (*nftitem.NftItemMetadata, error) {
 	body, metadataErr := http.Get(link)
-	nilNftItemMetadata := &nftitem.NftItemMetadata{}
 
 	if metadataErr != nil {
-		return nilNftItemMetadata, metadataErr
+		return nil, metadataErr
 	}
-	
+
 	rawNftItemMetadata, err := io.ReadAll(body.Body)
 	defer body.Body.Close()
 
 	if err != nil {
-		return nilNftItemMetadata, fmt.Errorf("reading nft item metadata body failed: %w", err)
+		return nil, fmt.Errorf("reading nft item metadata body failed: %w", err)
 	}
 
 	var parseTo nftitem.NftItemMetadata
 
 	if unmarshErr := json.Unmarshal(rawNftItemMetadata, &parseTo); unmarshErr != nil {
-		return nilNftItemMetadata, unmarshErr
+		return nil, unmarshErr
 	}
 
 	return &parseTo, nil

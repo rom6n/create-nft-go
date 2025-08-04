@@ -32,4 +32,17 @@ type NftItem struct {
 	CollectionName    string          `bson:"collection_name" json:"collection_name"`
 	Owner             uuid.UUID       `bson:"owner" json:"owner"`
 	Metadata          NftItemMetadata `bson:"metadata" json:"metadata"` // под вопросом как метадата будет приходить
+	IsTestnet         bool            `bson:"is_testnet" json:"is_testnet"`
+}
+
+func New(address string, index int64, collectionAddress string, collectionName string, owner uuid.UUID, metadata *NftItemMetadata, isTestnet bool) *NftItem {
+	return &NftItem{
+		Address:           address,
+		Index:             index,
+		CollectionAddress: collectionAddress,
+		CollectionName:    collectionName,
+		Owner:             owner,
+		Metadata:          *metadata,
+		IsTestnet:         isTestnet,
+	}
 }

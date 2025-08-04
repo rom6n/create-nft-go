@@ -28,10 +28,26 @@ func GetTestWallet(api ton.APIClientWrapped) (*wallet.Wallet, error) {
 	return w, nil
 }
 
-func GetLiteClient(ctx context.Context) (*liteclient.ConnectionPool, ton.APIClientWrapped) {
+func GetMainWallet(api ton.APIClientWrapped) (*wallet.Wallet, error) {
+	seedStr := os.Getenv("MAIN_WALLET_SEED")
+	if seedStr == "" {
+		log.Fatalln("MAIN WALLET SEED must be set")
+	}
+
+	seed := strings.Split(seedStr, " ")
+
+	w, seedErr := wallet.FromSeed(api, seed, wallet.V4R2)
+	if seedErr != nil {
+		return &wallet.Wallet{}, seedErr
+	}
+
+	return w, nil
+}
+
+func GetTestnetLiteClient(ctx context.Context) (*liteclient.ConnectionPool, ton.APIClientWrapped) {
 	client := liteclient.NewConnectionPool()
 	if err := client.AddConnectionsFromConfigUrl(ctx, "https://ton-blockchain.github.io/testnet-global.config.json"); err != nil {
-		log.Fatalf("Error add connect to liteclient: %v\n", err)
+		log.Fatalf("Error add connect to testnet liteclient: %v\n", err)
 	}
 
 	api := ton.NewAPIClient(client)
@@ -39,10 +55,21 @@ func GetLiteClient(ctx context.Context) (*liteclient.ConnectionPool, ton.APIClie
 	return client, api
 }
 
-func GetTestPrivateKey() ed25519.PrivateKey {
-	seedStr := os.Getenv("TEST_PRIVATE_KEY_SEED")
+func GetMainnetLiteClient(ctx context.Context) (*liteclient.ConnectionPool, ton.APIClientWrapped) {
+	client := liteclient.NewConnectionPool()
+	if err := client.AddConnectionsFromConfigUrl(ctx, "https://ton-blockchain.github.io/global.config.json"); err != nil {
+		log.Fatalf("Error add connect to mainnet liteclient: %v\n", err)
+	}
+
+	api := ton.NewAPIClient(client)
+
+	return client, api
+}
+
+func GetPrivateKey() ed25519.PrivateKey {
+	seedStr := os.Getenv("PRIVATE_KEY_SEED")
 	if seedStr == "" {
-		log.Fatalln("Add TEST_PRIVATE_KEY_SEED to .env")
+		log.Fatalln("Add PRIVATE_KEY_SEED to .env")
 	}
 
 	if len(seedStr) != ed25519.SeedSize {

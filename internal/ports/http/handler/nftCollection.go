@@ -16,15 +16,15 @@ type NftCollectionHandler struct {
 	DeployNftCollectionService deploynftcollection.DeployNftCollectionServiceRepository
 }
 
-func (v *NftCollectionHandler) DeployNftCollection() fiber.Handler { 
+func (v *NftCollectionHandler) DeployNftCollection() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		ctx := c.Context()
 
-		ownerWallet, ownerIDStr, commonContent, collectionContent, royaltyDividendStr, royaltyDivisorStr :=
-			c.Query("owner-wallet"), c.Query("owner-id"), c.Query("common-content"), c.Query("collection-content"), c.Query("royalty-dividend"), c.Query("royalty-divisor")
+		ownerWallet, ownerIDStr, commonContent, collectionContent, royaltyDividendStr, royaltyDivisorStr, isTest :=
+			c.Query("owner-wallet"), c.Query("owner-id"), c.Query("common-content"), c.Query("collection-content"), c.Query("royalty-dividend"), c.Query("royalty-divisor"), c.Query("is-testnet")
 
-		if ownerIDStr == "" || commonContent == "" || collectionContent == "" || royaltyDividendStr == "" || royaltyDivisorStr == "" {
-			return c.Status(fiber.StatusBadRequest).SendString("ownerID, common content, collection content, royalty dividend, royalty divisor are required")
+		if ownerIDStr == "" || commonContent == "" || collectionContent == "" || royaltyDividendStr == "" || royaltyDivisorStr == "" || isTest == "" {
+			return c.Status(fiber.StatusBadRequest).SendString("ownerID, common content, is testnet, collection content, royalty dividend, royalty divisor are required")
 		}
 
 		var ownerAddress *address.Address
@@ -36,8 +36,11 @@ func (v *NftCollectionHandler) DeployNftCollection() fiber.Handler {
 			}
 		}
 
-		// ?owner-wallet=0QDU46qYz4rHAJhszrW9w6imF8p4Cw5dS1GpPTcJ9vqNSmnf&owner-id=5003727541&common-content=https://&collection-content=https://rom6n.github.io/mc1f/nft-c1-collection.json&royalty-dividend=20&royalty-divisor=100
-
+		// ?owner-wallet=0QDU46qYz4rHAJhszrW9w6imF8p4Cw5dS1GpPTcJ9vqNSmnf&owner-id=5003727541&common-content=https://&collection-content=https://rom6n.github.io/mc1f/nft-c1-collection.json&royalty-dividend=20&royalty-divisor=100&is-testnet=true
+		isTestnet, parseBoolErr := strconv.ParseBool(isTest)
+		if parseBoolErr != nil {
+			c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Error parse is-testnet to bool: %v", parseBoolErr))
+		}
 		royaltyDividend, parseErr := strconv.ParseUint(royaltyDividendStr, 0, 16)
 		royaltyDivisor, parseErr2 := strconv.ParseUint(royaltyDivisorStr, 0, 16)
 		if parseErr != nil || parseErr2 != nil {
@@ -61,7 +64,7 @@ func (v *NftCollectionHandler) DeployNftCollection() fiber.Handler {
 			return c.Status(fiber.StatusInternalServerError).SendString("DeployNftCollectionService or NftCollectionService is not initialized")
 		}
 
-		collection, deployErr := v.DeployNftCollectionService.DeployNftCollection(ctx, collectionCfg, int64(ownerID))
+		collection, deployErr := v.DeployNftCollectionService.DeployNftCollection(ctx, collectionCfg, int64(ownerID), isTestnet)
 		if deployErr != nil {
 			return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Error while deploying nft collection: %v", deployErr))
 		}
