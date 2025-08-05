@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/goccy/go-json"
@@ -16,6 +19,7 @@ import (
 	"github.com/rom6n/create-nft-go/internal/ports/http/api/ton"
 	"github.com/rom6n/create-nft-go/internal/ports/http/handler"
 	deploynftcollection "github.com/rom6n/create-nft-go/internal/service/deploy_nft_collection"
+	marketplacecontractservice "github.com/rom6n/create-nft-go/internal/service/marketplace_contract_service"
 	mintnftitem "github.com/rom6n/create-nft-go/internal/service/mint_nft_item"
 	nftcollectionservice "github.com/rom6n/create-nft-go/internal/service/nft_collection_service"
 	userservice "github.com/rom6n/create-nft-go/internal/service/user_service"
@@ -29,6 +33,7 @@ import (
 
 func main() {
 	ctx := context.Background()
+
 	if loadErr := godotenv.Load(); loadErr != nil {
 		log.Fatal("‼️ Error loading .env file")
 	}
@@ -44,6 +49,8 @@ func main() {
 	nftItemContractCode := nftitemutils.GetNftItemContractCode()
 	marketplaceContractCode := marketutils.GetMarketplaceContractCode()
 	tonapiClient := ton.NewTonapiClient()
+	testnetWallet := tonutil.GetTestnetWallet(testnetLiteApi)
+	mainnetWallet := tonutil.GetMainnetWallet(mainnetLiteApi)
 
 	databaseClient := storage.NewMongoClient()
 	defer databaseClient.Disconnect(ctx)
@@ -115,6 +122,18 @@ func main() {
 		Timeout:                           30 * time.Second,
 	})
 
+	marketplaceContractServiceRepo := marketplacecontractservice.New(marketplacecontractservice.MarketplaceContractServiceCfg{
+		TestnetLiteClient:                 testnetLiteClient,
+		MainnetLiteClient:                 mainnetLiteClient,
+		TestnetMarketplaceContractAddress: testnetMarketplaceContractAddress,
+		MainnetMarketplaceContractAddress: mainnetMarketplaceContractAddress,
+		TestnetWallet:                     testnetWallet,
+		MainnetWallet:                     mainnetWallet,
+		PrivateKey:                        privateKey,
+		MarketplaceContractCode:           marketplaceContractCode,
+		Timeout:                           30 * time.Second,
+	})
+
 	tonApiRepo := ton.NewTonApiRepo(tonapiClient, 30*time.Second)
 
 	walletServiceRepo := walletservice.New(tonApiRepo, walletRepo)
@@ -136,6 +155,10 @@ func main() {
 
 	nftItemHandler := handler.NftItemHandler{
 		MintNftItemService: mintNftItemServiceRepo,
+	}
+
+	marketplaceHandler := handler.MarketplaceContractHandler{
+		MarketplaceContractService: marketplaceContractServiceRepo,
 	}
 
 	// ------------------------------- App & Routes --------------------------------------
@@ -160,18 +183,49 @@ func main() {
 	userApi := api.Group("/user")
 	nftCollectionApi := api.Group("/collection")
 	nftItemApi := api.Group("/nft")
+	marketApi := api.Group("/market")
 
 	walletApi.Get("/get-wallet-data", walletHandler.GetWalletData())
-
 	walletApi.Get("/refresh-wallet-nft-items", walletHandler.RefreshWalletNftItems()) // В будущем поменять на PUT
 
-	userApi.Get("/get-user-data", userHandler.GetUserData())
+	marketApi.Get("/deploy-market", marketplaceHandler.DeployMarketContract()) // В будущем поменять на POST
+	marketApi.Get("/deposit-market", marketplaceHandler.DepositMarket())       // В будущем поменять на POST
 
-	nftCollectionApi.Get("/deploy-market", nftCollectionHandler.DeployMarketContract())
+	userApi.Get("/get-user", userHandler.GetUserData())
+	//userApi.Get("/get-user-nft-collections")
+	//userApi.Get("/get-user-nft-items")
 
-	nftCollectionApi.Get("/deploy-collection-test", nftCollectionHandler.DeployNftCollection())
+	nftCollectionApi.Get("/deploy-collection", nftCollectionHandler.DeployNftCollection()) // В будущем поменять на POST
+	//nftCollectionApi.Get("/withdraw-collection")
 
-	nftItemApi.Get("/mint-nft-test", nftItemHandler.MintNftItem())
+	nftItemApi.Get("/mint-nft", nftItemHandler.MintNftItem()) // В будущем поменять на POST
+	//nftItemApi.Get("/withdraw-nft")
 
-	app.Listen(":2000")
+	go func() {
+		if err := app.Listen(":2000"); err != nil {
+			log.Fatalf("Error starting server: %v", err)
+		}
+	}()
+
+	stop := make(chan os.Signal, 1)
+
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, os.Interrupt)
+
+	<-stop
+	shutdownTimeSecond := 35 * time.Second
+	shutdownTime := 40
+
+	ctxShutdown, cancel := context.WithTimeout(ctx, shutdownTimeSecond)
+	defer cancel()
+
+	if shotdownErr := app.ShutdownWithContext(ctxShutdown); shotdownErr != nil {
+		log.Fatalf("Error shutting down server: %v. Forced shutdown", shotdownErr)
+	}
+
+	for i := shutdownTime; i > 0; i -= 1 {
+		log.Printf("🕒 Shutting down in %v seconds...\n", i)
+		time.Sleep(1 * time.Second)
+	}
+
+	log.Println("✅ Server shutdown successfully")
 }

@@ -12,7 +12,7 @@ import (
 	"github.com/xssnick/tonutils-go/ton/wallet"
 )
 
-func GetTestWallet(api ton.APIClientWrapped) (*wallet.Wallet, error) {
+func GetTestnetWallet(api ton.APIClientWrapped) *wallet.Wallet {
 	seedStr := os.Getenv("TEST_WALLET_SEED")
 	if seedStr == "" {
 		log.Fatalln("TEST WALLET SEED must be set")
@@ -22,13 +22,13 @@ func GetTestWallet(api ton.APIClientWrapped) (*wallet.Wallet, error) {
 
 	w, seedErr := wallet.FromSeed(api, seed, wallet.V4R2)
 	if seedErr != nil {
-		return &wallet.Wallet{}, seedErr
+		log.Fatalf("error creating testnet wallet: %v", seedErr)
 	}
 
-	return w, nil
+	return w
 }
 
-func GetMainWallet(api ton.APIClientWrapped) (*wallet.Wallet, error) {
+func GetMainnetWallet(api ton.APIClientWrapped) *wallet.Wallet {
 	seedStr := os.Getenv("MAIN_WALLET_SEED")
 	if seedStr == "" {
 		log.Fatalln("MAIN WALLET SEED must be set")
@@ -38,10 +38,10 @@ func GetMainWallet(api ton.APIClientWrapped) (*wallet.Wallet, error) {
 
 	w, seedErr := wallet.FromSeed(api, seed, wallet.V4R2)
 	if seedErr != nil {
-		return &wallet.Wallet{}, seedErr
+		log.Fatalf("error creating mainnet wallet: %v", seedErr)
 	}
 
-	return w, nil
+	return w
 }
 
 func GetTestnetLiteClient(ctx context.Context) (*liteclient.ConnectionPool, ton.APIClientWrapped) {

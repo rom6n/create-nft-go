@@ -72,14 +72,3 @@ func (v *NftCollectionHandler) DeployNftCollection() fiber.Handler {
 		return c.Status(fiber.StatusOK).JSON(collection)
 	}
 }
-
-func (v *NftCollectionHandler) DeployMarketContract() fiber.Handler { // Пока что деньги будут списываться с подключенного кошелька. Потом добавлю баланс в приложении
-	return func(c *fiber.Ctx) error {
-		ctx := c.Context()
-		if err := v.NftCollectionService.DeployMarketplaceContract(ctx); err != nil {
-			return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Error deploy market: %v", err))
-		}
-
-		return c.Status(fiber.StatusOK).SendString("Successfully deployed")
-	}
-}

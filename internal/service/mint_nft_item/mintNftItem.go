@@ -85,7 +85,7 @@ func (v *mintNftItemServiceRepo) MintNftItem(ctx context.Context, nftCollectionA
 	// сделать проверку на fwd amount
 	nanoTonForMint := uint64(60000000)
 	nanoTonForFees := uint64(5000000)
-	if cfg.ForwardAmount > 1000000 {
+	if cfg.ForwardAmount >= 1 {
 		nanoTonForMint += cfg.ForwardAmount
 	}
 

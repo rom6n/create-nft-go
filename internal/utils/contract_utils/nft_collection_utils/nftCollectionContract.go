@@ -103,7 +103,7 @@ func PackDeployNftItemMessage(nftCcollectionAddress *address.Address, nextItemIn
 		MustStoreAddr(cfg.OwnerAddress).
 		MustStoreRef(content)
 
-	if cfg.ForwardAmount > 1000000 {
+	if cfg.ForwardAmount >= 1 {
 		initContent.MustStoreCoins(cfg.ForwardAmount)
 		amount += cfg.ForwardAmount
 
