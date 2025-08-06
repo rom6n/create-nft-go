@@ -23,13 +23,25 @@ func PackStateInit(codeCell *cell.Cell, dataCell *cell.Cell) *cell.Cell {
 		EndCell()
 }
 
-func PackDefaultMessage(toAddress *address.Address) *cell.Cell {
-	return cell.BeginCell().
+func PackDefaultMessage(toAddress *address.Address, amount uint64, text ...string) *cell.Cell {
+	msgBuilder := cell.BeginCell().
 		MustStoreUInt(0x10, 6).
 		MustStoreAddr(toAddress).
-		MustStoreCoins(120000000).
-		MustStoreUInt(0, 1+4+4+64+32+1+1).
-		EndCell()
+		MustStoreCoins(amount).
+		MustStoreUInt(0, 1+4+4+64+32+1+1)
+
+	if text != nil {
+		packOfTextMessage := cell.BeginCell().
+			MustStoreUInt(0, 32).
+			MustStoreStringSnake(text[0]).
+			EndCell()
+
+		msgBuilder.
+			MustStoreInt(1, 1).
+			MustStoreRef(packOfTextMessage)
+	}
+
+	return msgBuilder.EndCell()
 }
 
 func PackDeployMessage(toAddress *address.Address, stateInit *cell.Cell) *cell.Cell {

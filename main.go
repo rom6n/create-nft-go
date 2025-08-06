@@ -127,6 +127,8 @@ func main() {
 		MainnetLiteClient:                 mainnetLiteClient,
 		TestnetMarketplaceContractAddress: testnetMarketplaceContractAddress,
 		MainnetMarketplaceContractAddress: mainnetMarketplaceContractAddress,
+		TestnetLiteApi:                    testnetLiteApi,
+		MainnetLiteApi:                    mainnetLiteApi,
 		TestnetWallet:                     testnetWallet,
 		MainnetWallet:                     mainnetWallet,
 		PrivateKey:                        privateKey,
@@ -181,31 +183,34 @@ func main() {
 	api := app.Group("/api")
 	walletApi := api.Group("/wallet")
 	userApi := api.Group("/user")
-	nftCollectionApi := api.Group("/collection")
+	nftCollectionApi := api.Group("/nft-collection")
 	nftItemApi := api.Group("/nft")
 	marketApi := api.Group("/market")
 
 	walletApi.Get("/get-wallet-data", walletHandler.GetWalletData())
 	walletApi.Get("/refresh-wallet-nft-items", walletHandler.RefreshWalletNftItems()) // В будущем поменять на PUT
 
-	marketApi.Get("/deploy-market", marketplaceHandler.DeployMarketContract()) // В будущем поменять на POST
-	marketApi.Get("/deposit-market", marketplaceHandler.DepositMarket())       // В будущем поменять на POST
+	marketApi.Get("/deploy", marketplaceHandler.DeployMarketContract())            // В будущем поменять на POST
+	marketApi.Get("/deposit", marketplaceHandler.DepositMarket())                  // В будущем поменять на POST
+	marketApi.Get("/withdraw", marketplaceHandler.WithdrawTonFromMarketContract()) // В будущем поменять на POST
 
 	userApi.Get("/get-user", userHandler.GetUserData())
 	//userApi.Get("/get-user-nft-collections")
 	//userApi.Get("/get-user-nft-items")
 
-	nftCollectionApi.Get("/deploy-collection", nftCollectionHandler.DeployNftCollection()) // В будущем поменять на POST
-	//nftCollectionApi.Get("/withdraw-collection")
+	nftCollectionApi.Get("/deploy", nftCollectionHandler.DeployNftCollection()) // В будущем поменять на POST
+	//nftCollectionApi.Get("/withdraw")
 
-	nftItemApi.Get("/mint-nft", nftItemHandler.MintNftItem()) // В будущем поменять на POST
-	//nftItemApi.Get("/withdraw-nft")
+	nftItemApi.Get("/mint", nftItemHandler.MintNftItem()) // В будущем поменять на POST
+	//nftItemApi.Get("/withdraw")
 
 	go func() {
 		if err := app.Listen(":2000"); err != nil {
 			log.Fatalf("Error starting server: %v", err)
 		}
 	}()
+
+	// ------------------------- Graceful shutdown --------------------------------
 
 	stop := make(chan os.Signal, 1)
 
