@@ -75,7 +75,18 @@ func main() {
 		Timeout:        15 * time.Second,
 	})
 
-	userServiceRepo := userservice.New(userRepo)
+	nftItemRepo := nftitemRepo.NewNftItemRepo(databaseClient, nftitemRepo.NftItemRepoCfg{
+		DBName:         "create-nft-tma",
+		CollectionName: "nft-items",
+		Timeout:        15 * time.Second,
+	})
+
+	userServiceRepo := userservice.New(userservice.UserServiceCfg{
+		UserRepo:          userRepo,
+		NftCollectionRepo: nftCollectionRepo,
+		NftItemRepo:       nftItemRepo,
+		Timeout:           30 * time.Second,
+	})
 
 	deployNftCollectionServiceRepo := deploynftcollection.New(deploynftcollection.DeployNftCollectionServiceCfg{
 		NftCollectionRepo:                 nftCollectionRepo,
@@ -99,12 +110,6 @@ func main() {
 		LiteClient:              testnetLiteClient,
 		LiteclientApi:           testnetLiteApi,
 		MarketplaceContractCode: marketplaceContractCode,
-	})
-
-	nftItemRepo := nftitemRepo.NewNftItemRepo(databaseClient, nftitemRepo.NftItemRepoCfg{
-		DBName:         "create-nft-tma",
-		CollectionName: "nft-items",
-		Timeout:        15 * time.Second,
 	})
 
 	mintNftItemServiceRepo := mintnftitem.New(mintnftitem.MintNftItemServiceCfg{
@@ -194,9 +199,9 @@ func main() {
 	marketApi.Get("/deposit", marketplaceHandler.DepositMarket())                  // В будущем поменять на POST
 	marketApi.Get("/withdraw", marketplaceHandler.WithdrawTonFromMarketContract()) // В будущем поменять на POST
 
-	userApi.Get("/get-user", userHandler.GetUserData())
-	//userApi.Get("/get-user-nft-collections")
-	//userApi.Get("/get-user-nft-items")
+	userApi.Get("/:id", userHandler.GetUserData())
+	userApi.Get("/nft-collections/:id", userHandler.GetUserNftCollections())
+	//userApi.Get("/nft-items/:id")
 
 	nftCollectionApi.Get("/deploy", nftCollectionHandler.DeployNftCollection()) // В будущем поменять на POST
 	//nftCollectionApi.Get("/withdraw")
@@ -217,8 +222,8 @@ func main() {
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, os.Interrupt)
 
 	<-stop
-	shutdownTimeSecond := 35 * time.Second
-	shutdownTime := 40
+	shutdownTimeSecond := 3 * time.Second
+	shutdownTime := 4
 
 	ctxShutdown, cancel := context.WithTimeout(ctx, shutdownTimeSecond)
 	defer cancel()

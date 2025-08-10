@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/rom6n/create-nft-go/internal/service/user_service"
+	userservice "github.com/rom6n/create-nft-go/internal/service/user_service"
 )
 
 type UserHandler struct {
@@ -16,7 +16,7 @@ func (h *UserHandler) GetUserData() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		ctx := c.Context()
 
-		userStrID := c.Query("user-id")
+		userStrID := c.Params("id")
 		if userStrID == "" {
 			return c.Status(fiber.StatusBadRequest).SendString("User ID is required")
 		}
@@ -32,5 +32,25 @@ func (h *UserHandler) GetUserData() fiber.Handler {
 		}
 
 		return c.Status(fiber.StatusOK).JSON(user)
+	}
+}
+
+func (v *UserHandler) GetUserNftCollections() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		ctx := c.Context()
+
+		userStrID := c.Params("id")
+		if userStrID == "" {
+			return c.Status(fiber.StatusBadRequest).SendString("User ID is required")
+		}
+
+		userID, parseErr := strconv.ParseInt(userStrID, 0, 64)
+		if parseErr != nil {
+			return c.Status(fiber.StatusBadRequest).SendString("User ID must be an int")
+		}
+
+		nftCollections := v.UserService.GetUserNftCollections(ctx, userID)
+
+		return c.Status(fiber.StatusOK).JSON(nftCollections)
 	}
 }

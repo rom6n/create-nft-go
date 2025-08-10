@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	nftcollection "github.com/rom6n/create-nft-go/internal/domain/nft_collection"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -85,4 +86,23 @@ func (v *nftCollectionRepo) GetNftCollectionByAddress(ctx context.Context, colle
 	}
 
 	return &foundedCollection, nil
+}
+
+func (v *nftCollectionRepo) GetNftCollectionsByOwnerUuid(ctx context.Context, uuid uuid.UUID) ([]nftcollection.NftCollection, error) {
+	dbCtx, cancel := v.GetContext(ctx)
+	defer cancel()
+
+	collection := v.GetCollection()
+
+	var foundedCollections []nftcollection.NftCollection
+	cursor, decodeErr := collection.Find(dbCtx, bson.D{{Key: "owner", Value: uuid}})
+	if decodeErr != nil {
+		return nil, fmt.Errorf("nft collection decode error after seaching: %v", decodeErr)
+	}
+
+	if decodeErr2 := cursor.All(dbCtx, &foundedCollections); decodeErr2 != nil {
+		return nil, fmt.Errorf("nft collection decode error after find: %v", decodeErr2)
+	}
+
+	return foundedCollections, nil
 }
