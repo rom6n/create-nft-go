@@ -24,6 +24,7 @@ import (
 	nftcollectionservice "github.com/rom6n/create-nft-go/internal/service/nft_collection_service"
 	userservice "github.com/rom6n/create-nft-go/internal/service/user_service"
 	walletservice "github.com/rom6n/create-nft-go/internal/service/wallet_service"
+	withdrawnftcollection "github.com/rom6n/create-nft-go/internal/service/withdraw_nft_collection"
 	"github.com/rom6n/create-nft-go/internal/storage"
 	marketutils "github.com/rom6n/create-nft-go/internal/utils/contract_utils/market_utils"
 	nftcollectionutils "github.com/rom6n/create-nft-go/internal/utils/contract_utils/nft_collection_utils"
@@ -141,6 +142,19 @@ func main() {
 		Timeout:                           30 * time.Second,
 	})
 
+	withdrawNftCollectionServiceRepo := withdrawnftcollection.New(withdrawnftcollection.WithdrawNftCollectionServiceCfg{
+		NftCollectionRepo:                 nftCollectionRepo,
+		UserRepo:                          userRepo,
+		PrivateKey:                        privateKey,
+		TestnetLiteClient:                 testnetLiteClient,
+		MainnetLiteClient:                 mainnetLiteClient,
+		TestnetLiteApi:                    testnetLiteApi,
+		MainnetLiteApi:                    mainnetLiteApi,
+		TestnetMarketplaceContractAddress: testnetMarketplaceContractAddress,
+		MainnetMarketplaceContractAddress: mainnetMarketplaceContractAddress,
+		Timeout:                           30 * time.Second,
+	})
+
 	tonApiRepo := ton.NewTonApiRepo(tonapiClient, 30*time.Second)
 
 	walletServiceRepo := walletservice.New(tonApiRepo, walletRepo)
@@ -156,8 +170,9 @@ func main() {
 	}
 
 	nftCollectionHandler := handler.NftCollectionHandler{
-		NftCollectionService:       nftCollectionServiceRepo,
-		DeployNftCollectionService: deployNftCollectionServiceRepo,
+		NftCollectionService:         nftCollectionServiceRepo,
+		DeployNftCollectionService:   deployNftCollectionServiceRepo,
+		WithdrawNftCollectionService: withdrawNftCollectionServiceRepo,
 	}
 
 	nftItemHandler := handler.NftItemHandler{
@@ -201,13 +216,13 @@ func main() {
 
 	userApi.Get("/:id", userHandler.GetUserData())
 	userApi.Get("/nft-collections/:id", userHandler.GetUserNftCollections())
-	//userApi.Get("/nft-items/:id")
+	userApi.Get("/nft-items/:id", userHandler.GetUserNftItems())
 
-	nftCollectionApi.Get("/deploy", nftCollectionHandler.DeployNftCollection()) // В будущем поменять на POST
-	//nftCollectionApi.Get("/withdraw")
+	nftCollectionApi.Get("/deploy", nftCollectionHandler.DeployNftCollection())              // В будущем поменять на POST
+	nftCollectionApi.Get("/withdraw/:address", nftCollectionHandler.WithdrawNftCollection()) // В будущем поменять на POST
 
 	nftItemApi.Get("/mint", nftItemHandler.MintNftItem()) // В будущем поменять на POST
-	//nftItemApi.Get("/withdraw")
+	//nftItemApi.Get("/withdraw") // В будущем поменять на POST
 
 	go func() {
 		if err := app.Listen(":2000"); err != nil {

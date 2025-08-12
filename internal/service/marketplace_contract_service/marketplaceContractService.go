@@ -67,12 +67,12 @@ func New(cfg MarketplaceContractServiceCfg) MarketplaceContractServiceRepository
 	}
 }
 
-func (v *marketplaceContractServiceRepo) GetContext(ctx context.Context) (context.Context, context.CancelFunc) {
+func (v *marketplaceContractServiceRepo) getContext(ctx context.Context) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(ctx, v.timeout)
 }
 
 func (v *marketplaceContractServiceRepo) DepositMarketplaceContract(ctx context.Context, amount uint64, isTestnet bool) error {
-	svcCtx, cancel := v.GetContext(ctx)
+	svcCtx, cancel := v.getContext(ctx)
 	defer cancel()
 
 	client := v.testnetLiteClient
@@ -126,7 +126,7 @@ func (v *marketplaceContractServiceRepo) DeployMarketplaceContract(ctx context.C
 }
 
 func (v *marketplaceContractServiceRepo) WithdrawTonFromMarketplaceContract(ctx context.Context, amount uint64, isTestnet bool, textMessage ...string) error {
-	svcCtx, cancel := v.GetContext(ctx)
+	svcCtx, cancel := v.getContext(ctx)
 	defer cancel()
 
 	client := v.testnetLiteClient

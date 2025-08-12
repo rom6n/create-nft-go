@@ -131,3 +131,15 @@ func PackDeployNftItemMessage(nftCcollectionAddress *address.Address, nextItemIn
 		MustStoreRef(initContent.EndCell()).
 		EndCell()
 }
+
+func PackChangeOwnerMsg(newOwner *address.Address, nftCollectionAddress *address.Address) *cell.Cell {
+	return cell.BeginCell().
+		MustStoreUInt(0x10, 6).
+		MustStoreAddr(nftCollectionAddress).
+		MustStoreCoins(10000000).
+		MustStoreUInt(0, 1+4+4+64+32+1+1).
+		MustStoreUInt(3, 32).
+		MustStoreUInt(5235, 64). 
+		MustStoreAddr(newOwner).
+		EndCell()
+}

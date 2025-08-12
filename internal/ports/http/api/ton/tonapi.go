@@ -45,12 +45,12 @@ func NewTonApiRepo(tonapiClient *tonapi.Client, timeout time.Duration) TonApiRep
 	}
 }
 
-func (r *tonapiTonApiRepo) GetContext(ctx context.Context) (context.Context, context.CancelFunc) {
+func (r *tonapiTonApiRepo) getContext(ctx context.Context) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(ctx, r.timeout)
 }
 
 func (r *tonapiTonApiRepo) GetWalletNftItems(ctx context.Context, walletAddress string) ([]wallet.NftItem, error) {
-	apiCtx, cancel := r.GetContext(ctx)
+	apiCtx, cancel := r.getContext(ctx)
 	defer cancel()
 
 	nfts, nftsErr := r.client.GetAccountNftItems(apiCtx, tonapi.GetAccountNftItemsParams{

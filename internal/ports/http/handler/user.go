@@ -17,9 +17,6 @@ func (h *UserHandler) GetUserData() fiber.Handler {
 		ctx := c.Context()
 
 		userStrID := c.Params("id")
-		if userStrID == "" {
-			return c.Status(fiber.StatusBadRequest).SendString("User ID is required")
-		}
 
 		userID, parseErr := strconv.ParseInt(userStrID, 0, 64)
 		if parseErr != nil {
@@ -40,9 +37,6 @@ func (v *UserHandler) GetUserNftCollections() fiber.Handler {
 		ctx := c.Context()
 
 		userStrID := c.Params("id")
-		if userStrID == "" {
-			return c.Status(fiber.StatusBadRequest).SendString("User ID is required")
-		}
 
 		userID, parseErr := strconv.ParseInt(userStrID, 0, 64)
 		if parseErr != nil {
@@ -52,5 +46,22 @@ func (v *UserHandler) GetUserNftCollections() fiber.Handler {
 		nftCollections := v.UserService.GetUserNftCollections(ctx, userID)
 
 		return c.Status(fiber.StatusOK).JSON(nftCollections)
+	}
+}
+
+func (v *UserHandler) GetUserNftItems() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		ctx := c.Context()
+
+		userStrID := c.Params("id")
+
+		userID, parseErr := strconv.ParseInt(userStrID, 0, 64)
+		if parseErr != nil {
+			return c.Status(fiber.StatusBadRequest).SendString("User ID must be an int")
+		}
+
+		nftItems := v.UserService.GetUserNftItems(ctx, userID)
+
+		return c.Status(fiber.StatusOK).JSON(nftItems)
 	}
 }

@@ -74,12 +74,12 @@ func New(cfg MintNftItemServiceCfg) MintNftItemServiceRepository {
 	}
 }
 
-func (v *mintNftItemServiceRepo) GetContext(ctx context.Context) (context.Context, context.CancelFunc) {
+func (v *mintNftItemServiceRepo) getContext(ctx context.Context) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(ctx, v.timeout)
 }
 
 func (v *mintNftItemServiceRepo) MintNftItem(ctx context.Context, nftCollectionAddress *address.Address, cfg nft.MintNftItemCfg, ownerID int64, isTestnet bool) (*nft.NftItem, error) {
-	svcCtx, cancel := v.GetContext(ctx)
+	svcCtx, cancel := v.getContext(ctx)
 	defer cancel()
 
 	// сделать проверку на fwd amount
@@ -204,7 +204,8 @@ func (v *mintNftItemServiceRepo) MintNftItem(ctx context.Context, nftCollectionA
 		nftItemMetadata,
 		isTestnet,
 	)
-
+	
+	// ДОБАВИТЬ ТРАНЗАКЦИЮ
 	// reducing the user's balance
 	if updErr := v.userRepo.UpdateUserBalance(svcCtx, ownerAccount.UUID, ownerAccount.NanoTon-nanoTonForMint-nanoTonForFees); updErr != nil {
 		return nil, fmt.Errorf("error reducing user's balance for nft item mint: %v", updErr)

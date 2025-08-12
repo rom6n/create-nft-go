@@ -31,19 +31,19 @@ func NewWalletRepo(client *mongo.Client, cfg WalletRepoCfg) wallet.WalletReposit
 	}
 }
 
-func (r *mongoWalletRepo) GetContext(ctx context.Context) (context.Context, context.CancelFunc) {
+func (r *mongoWalletRepo) getContext(ctx context.Context) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(ctx, r.timeout)
 }
 
-func (r *mongoWalletRepo) GetCollection() *mongo.Collection {
+func (r *mongoWalletRepo) getCollection() *mongo.Collection {
 	return r.client.Database(r.dbName).Collection(r.collectionName)
 }
 
 func (r *mongoWalletRepo) AddWallet(ctx context.Context, wallet *wallet.Wallet) error {
-	dbCtx, close := r.GetContext(ctx)
+	dbCtx, close := r.getContext(ctx)
 	defer close()
 
-	walletsCollection := r.GetCollection()
+	walletsCollection := r.getCollection()
 
 	if _, insertErr := walletsCollection.InsertOne(dbCtx, *wallet); insertErr != nil {
 		return insertErr
@@ -53,10 +53,10 @@ func (r *mongoWalletRepo) AddWallet(ctx context.Context, wallet *wallet.Wallet) 
 }
 
 func (r *mongoWalletRepo) UpdateWalletNftItems(ctx context.Context, walletAddress string, nftItems []wallet.NftItem) error {
-	dbCtx, close := r.GetContext(ctx)
+	dbCtx, close := r.getContext(ctx)
 	defer close()
 
-	walletsCollection := r.GetCollection()
+	walletsCollection := r.getCollection()
 
 	filter := bson.D{{Key: "_id", Value: walletAddress}}
 
@@ -73,7 +73,7 @@ func (r *mongoWalletRepo) GetWalletByAddress(ctx context.Context, address string
 	dbCtx, close := context.WithTimeout(ctx, 5*time.Second)
 	defer close()
 
-	walletsCollection := r.GetCollection()
+	walletsCollection := r.getCollection()
 
 	var wallet *wallet.Wallet
 

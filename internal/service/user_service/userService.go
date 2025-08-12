@@ -15,6 +15,7 @@ import (
 type UserServiceRepository interface {
 	GetUserByID(ctx context.Context, userID int64) (*user.User, error)
 	GetUserNftCollections(ctx context.Context, userID int64) []nftcollection.NftCollection
+	GetUserNftItems(ctx context.Context, userID int64) []nftitem.NftItem
 }
 
 type userServiceRepo struct {
@@ -40,12 +41,12 @@ func New(cfg UserServiceCfg) UserServiceRepository {
 	}
 }
 
-func (v *userServiceRepo) GetContext(ctx context.Context) (context.Context, context.CancelFunc) {
+func (v *userServiceRepo) getContext(ctx context.Context) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(ctx, v.timeout)
 }
 
 func (v *userServiceRepo) GetUserByID(ctx context.Context, userID int64) (*user.User, error) {
-	svcCtx, cancel := v.GetContext(ctx)
+	svcCtx, cancel := v.getContext(ctx)
 	defer cancel()
 
 	foundUser, dbErr := v.userRepo.GetUserByID(svcCtx, userID)
@@ -63,7 +64,7 @@ func (v *userServiceRepo) GetUserByID(ctx context.Context, userID int64) (*user.
 }
 
 func (v *userServiceRepo) GetUserNftCollections(ctx context.Context, userID int64) []nftcollection.NftCollection {
-	svcCtx, cancel := v.GetContext(ctx)
+	svcCtx, cancel := v.getContext(ctx)
 	defer cancel()
 
 	user, userErr := v.userRepo.GetUserByID(svcCtx, userID)
@@ -74,9 +75,28 @@ func (v *userServiceRepo) GetUserNftCollections(ctx context.Context, userID int6
 
 	nftCollections, nftCollectionsErr := v.nftCollectionRepo.GetNftCollectionsByOwnerUuid(svcCtx, user.UUID)
 	if nftCollectionsErr != nil {
-		log.Warnf("error fetching user's nft collections: %v", userErr)
+		log.Warnf("error fetching user's nft collections: %v", nftCollectionsErr)
 		return nil
 	}
 
 	return nftCollections
+}
+
+func (v *userServiceRepo) GetUserNftItems(ctx context.Context, userID int64) []nftitem.NftItem {
+	svcCtx, cancel := v.getContext(ctx)
+	defer cancel()
+
+	user, userErr := v.userRepo.GetUserByID(svcCtx, userID)
+	if userErr != nil {
+		log.Warnf("error fetching user's data: %v", userErr)
+		return nil
+	}
+
+	nftItems, nftItemsErr := v.nftItemRepo.GetNftItemsByOwnerUuid(svcCtx, user.UUID)
+	if nftItemsErr != nil {
+		log.Warnf("error fetching user's nft items: %v", nftItemsErr)
+		return nil
+	}
+
+	return nftItems
 }

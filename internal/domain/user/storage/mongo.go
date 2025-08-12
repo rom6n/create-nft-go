@@ -33,19 +33,19 @@ func NewUserRepo(client *mongo.Client, cfg UserRepoCfg) user.UserRepository {
 	}
 }
 
-func (r *mongoUserRepo) GetContext(ctx context.Context) (context.Context, context.CancelFunc) {
+func (r *mongoUserRepo) getContext(ctx context.Context) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(ctx, r.timeout)
 }
 
-func (r *mongoUserRepo) GetCollection() *mongo.Collection {
+func (r *mongoUserRepo) getCollection() *mongo.Collection {
 	return r.client.Database(r.dbName).Collection(r.collectionName)
 }
 
 func (r *mongoUserRepo) GetUserByID(ctx context.Context, userID int64) (*user.User, error) {
-	dbCtx, cancel := r.GetContext(ctx)
+	dbCtx, cancel := r.getContext(ctx)
 	defer cancel()
 
-	userCollection := r.GetCollection()
+	userCollection := r.getCollection()
 
 	var user user.User
 
@@ -57,20 +57,20 @@ func (r *mongoUserRepo) GetUserByID(ctx context.Context, userID int64) (*user.Us
 }
 
 func (v *mongoUserRepo) CreateUser(ctx context.Context, user *user.User) error {
-	dbCtx, cancel := v.GetContext(ctx)
+	dbCtx, cancel := v.getContext(ctx)
 	defer cancel()
 
-	collection := v.GetCollection()
+	collection := v.getCollection()
 
 	_, insertErr := collection.InsertOne(dbCtx, *user)
 	return insertErr
 }
 
 func (v *mongoUserRepo) UpdateUserBalance(ctx context.Context, userUuid uuid.UUID, newNanoTon uint64) error {
-	dbCtx, cancel := v.GetContext(ctx)
+	dbCtx, cancel := v.getContext(ctx)
 	defer cancel()
 
-	collection := v.GetCollection()
+	collection := v.getCollection()
 	_, updErr := collection.UpdateOne(dbCtx, bson.D{{Key: "_id", Value: userUuid}}, bson.D{{Key: "$set", Value: bson.D{{Key: "nano_ton", Value: newNanoTon}}}})
 	if updErr != nil {
 		return fmt.Errorf("error update user uuid %v's balance: %v", userUuid, updErr)
