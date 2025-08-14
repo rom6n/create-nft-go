@@ -77,3 +77,31 @@ func (v *nftItemRepo) GetNftItemsByOwnerUuid(ctx context.Context, uuid uuid.UUID
 
 	return foundedCollections, nil
 }
+
+func (v *nftItemRepo) GetNftItemByAddress(ctx context.Context, nftItemAddress string) (*nftitem.NftItem, error) {
+	dbCtx, cancel := v.getContext(ctx)
+	defer cancel()
+
+	collection := v.getCollection()
+
+	var foundedNftItem nftitem.NftItem
+	decodeErr := collection.FindOne(dbCtx, bson.D{{Key: "_id", Value: nftItemAddress}}).Decode(&foundedNftItem)
+	if decodeErr != nil {
+		return &foundedNftItem, fmt.Errorf("nft item decode error after seaching: %v", decodeErr)
+	}
+
+	return &foundedNftItem, nil
+}
+
+func (v *nftItemRepo) DeleteNftItem(ctx context.Context, nftItemAddress string) error {
+	dbCtx, cancel := v.getContext(ctx)
+	defer cancel()
+
+	collection := v.getCollection()
+
+	if _, err := collection.DeleteOne(dbCtx, bson.D{{Key: "_id", Value: nftItemAddress}}); err != nil {
+		return fmt.Errorf("error deleting nft item from db: %v", err)
+	}
+
+	return nil
+}

@@ -7,9 +7,10 @@ import (
 )
 
 type NftItemRepository interface {
-	//GetNftItemByAddress(ctx context.Context, address string) (*NftItem, error)
 	CreateNftItem(ctx context.Context, nftItem *NftItem) error
 	GetNftItemsByOwnerUuid(ctx context.Context, uuid uuid.UUID) ([]NftItem, error)
+	GetNftItemByAddress(ctx context.Context, nftItemAddress string) (*NftItem, error)
+	DeleteNftItem(ctx context.Context, nftItemAddress string) error
 }
 
 //Основные коды ошибкок

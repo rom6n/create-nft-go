@@ -7,11 +7,13 @@ import (
 	"github.com/gofiber/fiber/v2"
 	nftitem "github.com/rom6n/create-nft-go/internal/domain/nft_item"
 	mintnftitem "github.com/rom6n/create-nft-go/internal/service/mint_nft_item"
+	withdrawnftitem "github.com/rom6n/create-nft-go/internal/service/withdraw_nft_item"
 	"github.com/xssnick/tonutils-go/address"
 )
 
 type NftItemHandler struct {
-	MintNftItemService mintnftitem.MintNftItemServiceRepository
+	MintNftItemService     mintnftitem.MintNftItemServiceRepository
+	WithdrawNftItemService withdrawnftitem.WithdrawNftItemServiceRepository
 }
 
 func (v *NftItemHandler) MintNftItem() fiber.Handler {
@@ -70,5 +72,42 @@ func (v *NftItemHandler) MintNftItem() fiber.Handler {
 		}
 
 		return c.Status(fiber.StatusOK).JSON(nftItem)
+	}
+}
+
+func (v *NftItemHandler) WithdrawNftItem() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		ctx := c.Context()
+
+		nftItemAddressStr, WithdrawToAddressStr, ownerIDStr, isTest := c.Params("address"), c.Query("withdraw-to"), c.Query("owner-id"), c.Query("is-testnet")
+		if WithdrawToAddressStr == "" || isTest == "" || ownerIDStr == "" {
+			return c.Status(fiber.StatusBadRequest).SendString("withdraw to, owner id and is testnet are required")
+		}
+
+		ownerID, parseErr := strconv.Atoi(ownerIDStr)
+		if parseErr != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Error parse to int: %v", parseErr))
+		}
+
+		isTestnet, parseBoolErr := strconv.ParseBool(isTest)
+		if parseBoolErr != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Error parse is-testnet to bool: %v", parseBoolErr))
+		}
+
+		nftItemAddress, parseAddrErr := address.ParseAddr(nftItemAddressStr)
+		if parseAddrErr != nil {
+			return c.Status(fiber.StatusBadRequest).SendString(fmt.Sprintf("nft item is not valid address: %v\n%v", nftItemAddressStr, parseAddrErr))
+		}
+
+		newOwnerAddress, parseAddrErr := address.ParseAddr(WithdrawToAddressStr)
+		if parseAddrErr != nil {
+			return c.Status(fiber.StatusBadRequest).SendString("new owner is not valid address")
+		}
+
+		if withdrawErr := v.WithdrawNftItemService.WithdrawNftItem(ctx, nftItemAddress, newOwnerAddress, int64(ownerID), isTestnet); withdrawErr != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("error withdrawing: %v", withdrawErr))
+		}
+
+		return c.Status(fiber.StatusOK).SendString("Successfully withdrawed nft item")
 	}
 }

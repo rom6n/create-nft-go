@@ -25,6 +25,7 @@ import (
 	userservice "github.com/rom6n/create-nft-go/internal/service/user_service"
 	walletservice "github.com/rom6n/create-nft-go/internal/service/wallet_service"
 	withdrawnftcollection "github.com/rom6n/create-nft-go/internal/service/withdraw_nft_collection"
+	withdrawnftitem "github.com/rom6n/create-nft-go/internal/service/withdraw_nft_item"
 	"github.com/rom6n/create-nft-go/internal/storage"
 	marketutils "github.com/rom6n/create-nft-go/internal/utils/contract_utils/market_utils"
 	nftcollectionutils "github.com/rom6n/create-nft-go/internal/utils/contract_utils/nft_collection_utils"
@@ -155,6 +156,19 @@ func main() {
 		Timeout:                           30 * time.Second,
 	})
 
+	withdrawNftItemServiceRepo := withdrawnftitem.New(withdrawnftitem.WithdrawNftItemServiceCfg{
+		NftItemRepo:                       nftItemRepo,
+		UserRepo:                          userRepo,
+		PrivateKey:                        privateKey,
+		TestnetLiteClient:                 testnetLiteClient,
+		MainnetLiteClient:                 mainnetLiteClient,
+		TestnetLiteApi:                    testnetLiteApi,
+		MainnetLiteApi:                    mainnetLiteApi,
+		TestnetMarketplaceContractAddress: testnetMarketplaceContractAddress,
+		MainnetMarketplaceContractAddress: mainnetMarketplaceContractAddress,
+		Timeout:                           30 * time.Second,
+	})
+
 	tonApiRepo := ton.NewTonApiRepo(tonapiClient, 30*time.Second)
 
 	walletServiceRepo := walletservice.New(tonApiRepo, walletRepo)
@@ -176,7 +190,8 @@ func main() {
 	}
 
 	nftItemHandler := handler.NftItemHandler{
-		MintNftItemService: mintNftItemServiceRepo,
+		MintNftItemService:     mintNftItemServiceRepo,
+		WithdrawNftItemService: withdrawNftItemServiceRepo,
 	}
 
 	marketplaceHandler := handler.MarketplaceContractHandler{
@@ -204,7 +219,7 @@ func main() {
 	walletApi := api.Group("/wallet")
 	userApi := api.Group("/user")
 	nftCollectionApi := api.Group("/nft-collection")
-	nftItemApi := api.Group("/nft")
+	nftItemApi := api.Group("/nft-item")
 	marketApi := api.Group("/market")
 
 	walletApi.Get("/get-wallet-data", walletHandler.GetWalletData())
@@ -221,8 +236,8 @@ func main() {
 	nftCollectionApi.Get("/deploy", nftCollectionHandler.DeployNftCollection())              // В будущем поменять на POST
 	nftCollectionApi.Get("/withdraw/:address", nftCollectionHandler.WithdrawNftCollection()) // В будущем поменять на POST
 
-	nftItemApi.Get("/mint", nftItemHandler.MintNftItem()) // В будущем поменять на POST
-	//nftItemApi.Get("/withdraw") // В будущем поменять на POST
+	nftItemApi.Get("/mint", nftItemHandler.MintNftItem())                  // В будущем поменять на POST
+	nftItemApi.Get("/withdraw/:address", nftItemHandler.WithdrawNftItem()) // В будущем поменять на POST
 
 	go func() {
 		if err := app.Listen(":2000"); err != nil {
@@ -237,8 +252,8 @@ func main() {
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, os.Interrupt)
 
 	<-stop
-	shutdownTimeSecond := 3 * time.Second
-	shutdownTime := 4
+	shutdownTimeSecond := 3 * time.Second // basically 35 seconds
+	shutdownTime := 4                     // basically 40 seconds
 
 	ctxShutdown, cancel := context.WithTimeout(ctx, shutdownTimeSecond)
 	defer cancel()

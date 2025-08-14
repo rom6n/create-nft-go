@@ -81,7 +81,7 @@ func (v *NftCollectionHandler) WithdrawNftCollection() fiber.Handler {
 
 		collectionAddressStr, WithdrawToAddressStr, ownerIDStr, isTest := c.Params("address"), c.Query("withdraw-to"), c.Query("owner-id"), c.Query("is-testnet")
 		if WithdrawToAddressStr == "" || isTest == "" || ownerIDStr == "" {
-			return c.Status(fiber.StatusBadRequest).SendString("collection address, withdraw to, owner id and is testnet are required")
+			return c.Status(fiber.StatusBadRequest).SendString("withdraw to, owner id and is testnet are required")
 		}
 
 		ownerID, parseErr := strconv.Atoi(ownerIDStr)

@@ -82,7 +82,6 @@ func (v *mintNftItemServiceRepo) MintNftItem(ctx context.Context, nftCollectionA
 	svcCtx, cancel := v.getContext(ctx)
 	defer cancel()
 
-	// сделать проверку на fwd amount
 	nanoTonForMint := uint64(60000000)
 	nanoTonForFees := uint64(5000000)
 	if cfg.ForwardAmount >= 1 {
@@ -142,6 +141,7 @@ func (v *mintNftItemServiceRepo) MintNftItem(ctx context.Context, nftCollectionA
 		return nil, fmt.Errorf("fail getting nft collection data method: %v", dataErr)
 	}
 
+
 	seqno, seqnoErr := response.Int(0)
 	if seqnoErr != nil {
 		return nil, fmt.Errorf("marketplace method seqno returned not a seqno: %v", seqnoErr)
@@ -168,7 +168,7 @@ func (v *mintNftItemServiceRepo) MintNftItem(ctx context.Context, nftCollectionA
 
 	// checking for market contract is nft collection owner
 	if !nftCollectionOwnerAddress.Equals(marketplaceContractAddress) {
-		return nil, fmt.Errorf("marketplace contract must be a nft collection owner to deploy nft item")
+		return nil, fmt.Errorf("marketplace contract must be an nft collection's owner to mint nft item")
 	}
 
 	nftCollectionMetadata, metaErr := nftcollectionutils.GetNftCollectionOffchainMetadata(nftCollectionMetadataLink)
@@ -204,7 +204,7 @@ func (v *mintNftItemServiceRepo) MintNftItem(ctx context.Context, nftCollectionA
 		nftItemMetadata,
 		isTestnet,
 	)
-	
+
 	// ДОБАВИТЬ ТРАНЗАКЦИЮ
 	// reducing the user's balance
 	if updErr := v.userRepo.UpdateUserBalance(svcCtx, ownerAccount.UUID, ownerAccount.NanoTon-nanoTonForMint-nanoTonForFees); updErr != nil {

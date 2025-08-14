@@ -10,6 +10,7 @@ import (
 
 	"github.com/goccy/go-json"
 	nftitem "github.com/rom6n/create-nft-go/internal/domain/nft_item"
+	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
@@ -53,4 +54,27 @@ func GetNftItemOffchainMetadata(link string) (*nftitem.NftItemMetadata, error) {
 	}
 
 	return &parseTo, nil
+}
+
+func PackChangeOwnerMsg(newOwner *address.Address, marketplaceContractAddress *address.Address, nftItemAddress *address.Address) *cell.Cell {
+	fwdMsg := cell.BeginCell().
+		MustStoreUInt(0, 32).
+		MustStoreStringSnake("NFT withdraw").
+		EndCell()
+
+	// 🔴🔴🔴🔴🔴🔴🔴🔴🔴 FIX THIS 🔴🔴🔴🔴🔴🔴🔴🔴🔴
+	return cell.BeginCell().
+		MustStoreUInt(0x10, 6).
+		MustStoreAddr(nftItemAddress).
+		MustStoreCoins(50000000). // 0.05 TON for nft item contract
+		MustStoreUInt(0, 1+4+4+64+32+1+1).
+		MustStoreUInt(0x5fcc3d14, 32). // Transfer OP-code
+		MustStoreUInt(93784, 64).      // random query id
+		MustStoreAddr(newOwner).
+		MustStoreUInt(0, 2). // 🔴🔴🔴🔴🔴🔴🔴🔴🔴 FIX THIS 🔴🔴🔴🔴🔴🔴🔴🔴🔴
+		MustStoreInt(0, 1).
+		MustStoreCoins(10000000). // 0.01 TON for forward amount
+		MustStoreInt(1, 1).
+		MustStoreRef(fwdMsg).
+		EndCell()
 }
