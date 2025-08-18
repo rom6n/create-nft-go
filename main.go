@@ -10,6 +10,7 @@ import (
 
 	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/joho/godotenv"
 	nftcollectionrepo "github.com/rom6n/create-nft-go/internal/domain/nft_collection/storage"
@@ -206,6 +207,12 @@ func main() {
 	})
 
 	app.Use(logger.New())
+
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: "18.156.158.53,18.156.42.200,52.59.103.54",
+		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+	}))
 
 	app.Get("/ping", func(c *fiber.Ctx) error {
 		return c.SendString("pong")
