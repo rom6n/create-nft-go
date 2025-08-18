@@ -37,7 +37,7 @@ func main() {
 	ctx := context.Background()
 
 	if loadErr := godotenv.Load(); loadErr != nil {
-		log.Fatal("‼️ Error loading .env file")
+		log.Println("Using system environment variables")
 	}
 
 	// ---------------------------------- Init -----------------------------------------
@@ -240,7 +240,11 @@ func main() {
 	nftItemApi.Get("/withdraw/:address", nftItemHandler.WithdrawNftItem()) // В будущем поменять на POST
 
 	go func() {
-		if err := app.Listen(":2000"); err != nil {
+		port := os.Getenv("PORT")
+		if port == "" {
+			port = "8080" // дефолт для локального запуска
+		}
+		if err := app.Listen(":" + port); err != nil {
 			log.Fatalf("Error starting server: %v", err)
 		}
 	}()
