@@ -78,6 +78,7 @@ func (v *deployNftCollectionServiceRepo) DeployNftCollection(ctx context.Context
 	client := v.testnetLiteClient
 	api := v.testnetLiteApi
 
+
 	if !isTestnet {
 		marketAddress = v.mainnetMarketplaceContractAddress
 		client = v.mainnetLiteClient
