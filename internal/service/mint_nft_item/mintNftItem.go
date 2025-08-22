@@ -82,7 +82,7 @@ func (v *mintNftItemServiceRepo) MintNftItem(ctx context.Context, nftCollectionA
 	svcCtx, cancel := v.getContext(ctx)
 	defer cancel()
 
-	nanoTonForMint := uint64(60000000)
+	nanoTonForMint := uint64(70000000)
 	nanoTonForFees := uint64(5000000)
 	if cfg.ForwardAmount >= 1 {
 		nanoTonForMint += cfg.ForwardAmount

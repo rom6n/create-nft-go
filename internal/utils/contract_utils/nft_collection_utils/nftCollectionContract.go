@@ -97,7 +97,7 @@ func PackNftCollectionData(ownerAddress *address.Address, content *cell.Cell, nf
 func PackDeployNftItemMessage(nftCcollectionAddress *address.Address, nextItemIndex uint64, cfg nftitem.MintNftItemCfg) *cell.Cell {
 	cfg.Content = strings.TrimPrefix(cfg.Content, "https://")
 	content := cell.BeginCell().MustStoreStringSnake(cfg.Content).EndCell()
-	amount := uint64(60000000)
+	amount := uint64(70000000)
 
 	initContent := cell.BeginCell().
 		MustStoreAddr(cfg.OwnerAddress).

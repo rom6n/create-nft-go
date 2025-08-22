@@ -3,8 +3,6 @@ module github.com/rom6n/create-nft-go
 go 1.24.4
 
 require (
-	github.com/chai2010/webp v1.4.0
-	github.com/disintegration/imaging v1.6.2
 	github.com/go-faster/jx v1.1.0
 	github.com/goccy/go-json v0.10.5
 	github.com/gofiber/fiber/v2 v2.52.9
@@ -53,7 +51,6 @@ require (
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/crypto v0.41.0 // indirect
 	golang.org/x/exp v0.0.0-20250813145105-42675adae3e6 // indirect
-	golang.org/x/image v0.0.0-20211028202545-6944b10bf410 // indirect
 	golang.org/x/mod v0.27.0 // indirect
 	golang.org/x/net v0.43.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect

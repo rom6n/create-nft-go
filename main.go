@@ -19,7 +19,6 @@ import (
 	walletRepo "github.com/rom6n/create-nft-go/internal/domain/wallet/storage"
 	"github.com/rom6n/create-nft-go/internal/ports/http/api/ton"
 	"github.com/rom6n/create-nft-go/internal/ports/http/handler"
-	convertimage "github.com/rom6n/create-nft-go/internal/service/convert_image"
 	deploynftcollection "github.com/rom6n/create-nft-go/internal/service/deploy_nft_collection"
 	marketplacecontractservice "github.com/rom6n/create-nft-go/internal/service/marketplace_contract_service"
 	mintnftitem "github.com/rom6n/create-nft-go/internal/service/mint_nft_item"
@@ -171,8 +170,6 @@ func main() {
 		Timeout:                           30 * time.Second,
 	})
 
-	convertImageServiceRepo := convertimage.New()
-
 	tonApiRepo := ton.NewTonApiRepo(tonapiClient, 30*time.Second)
 
 	walletServiceRepo := walletservice.New(tonApiRepo, walletRepo)
@@ -202,10 +199,6 @@ func main() {
 		MarketplaceContractService: marketplaceContractServiceRepo,
 	}
 
-	converterHandler := handler.ConverterHandler {
-		ConvertImageService: convertImageServiceRepo,
-	}
-
 	// ------------------------------- App & Routes --------------------------------------
 
 	app := fiber.New(fiber.Config{
@@ -230,14 +223,11 @@ func main() {
 	})
 
 	api := app.Group("/api")
-	convertApi := app.Group("/convert")
 	walletApi := api.Group("/wallet")
 	userApi := api.Group("/user")
 	nftCollectionApi := api.Group("/nft-collection")
 	nftItemApi := api.Group("/nft-item")
 	marketApi := api.Group("/market")
-
-	convertApi.Post("/image", converterHandler.ConvertToWebP())
 
 	walletApi.Get("/get-wallet-data", walletHandler.GetWalletData())
 	walletApi.Get("/refresh-wallet-nft-items", walletHandler.RefreshWalletNftItems()) // В будущем поменять на PUT
