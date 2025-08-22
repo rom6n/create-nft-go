@@ -237,7 +237,7 @@ func main() {
 	nftItemApi := api.Group("/nft-item")
 	marketApi := api.Group("/market")
 
-	convertApi.Get("/image", converterHandler.ConvertToWebP())
+	convertApi.Post("/image", converterHandler.ConvertToWebP())
 
 	walletApi.Get("/get-wallet-data", walletHandler.GetWalletData())
 	walletApi.Get("/refresh-wallet-nft-items", walletHandler.RefreshWalletNftItems()) // В будущем поменять на PUT
