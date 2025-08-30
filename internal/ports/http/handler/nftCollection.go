@@ -22,11 +22,11 @@ func (v *NftCollectionHandler) DeployNftCollection() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		ctx := c.Context()
 
-		ownerWallet, ownerIDStr, commonContent, collectionContent, royaltyDividendStr, royaltyDivisorStr, isTest :=
-			c.Query("owner-wallet"), c.Query("owner-id"), c.Query("common-content"), c.Query("collection-content"), c.Query("royalty-dividend"), c.Query("royalty-divisor"), c.Query("is-testnet")
+		ownerWallet, ownerIDStr, collectionContent, royaltyDividendStr, royaltyDivisorStr, isTest :=
+			c.Query("owner-wallet"), c.Query("owner-id"), c.Query("collection-content"), c.Query("royalty-dividend"), c.Query("royalty-divisor"), c.Query("is-testnet")
 
-		if ownerIDStr == "" || commonContent == "" || collectionContent == "" || royaltyDividendStr == "" || royaltyDivisorStr == "" || isTest == "" {
-			return c.Status(fiber.StatusBadRequest).SendString("ownerID, common content, is testnet, collection content, royalty dividend, royalty divisor are required")
+		if ownerIDStr == "" || collectionContent == "" || royaltyDividendStr == "" || royaltyDivisorStr == "" || isTest == "" {
+			return c.Status(fiber.StatusBadRequest).SendString("owner id, is testnet, collection content, royalty dividend, royalty divisor are required")
 		}
 
 		var ownerAddress *address.Address
@@ -54,6 +54,7 @@ func (v *NftCollectionHandler) DeployNftCollection() fiber.Handler {
 			return c.Status(fiber.StatusInternalServerError).SendString(fmt.Sprintf("Error parse to int: %v", parseErr))
 		}
 
+		commonContent := "https://" // common content will always start with https://
 		collectionCfg := nftcollection.DeployCollectionCfg{
 			OwnerAddress:      ownerAddress,
 			CommonContent:     commonContent,
