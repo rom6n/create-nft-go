@@ -49,6 +49,11 @@ func (r *tonapiTonApiRepo) getContext(ctx context.Context) (context.Context, con
 	return context.WithTimeout(ctx, r.timeout)
 }
 
+func (r *tonapiTonApiRepo) runStreamApi(apiKey string) {
+	streamApi := tonapi.NewStreamingAPI(tonapi.WithStreamingToken(apiKey))
+	streamApi.SubscribeToTransactions(context.Background(), []string{""}, nil, nil )
+}
+
 func (r *tonapiTonApiRepo) GetWalletNftItems(ctx context.Context, walletAddress string) ([]wallet.NftItem, error) {
 	apiCtx, cancel := r.getContext(ctx)
 	defer cancel()
