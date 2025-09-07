@@ -92,18 +92,18 @@ func main() {
 	})
 
 	deployNftCollectionServiceRepo := deploynftcollection.New(deploynftcollection.DeployNftCollectionServiceCfg{
-		NftCollectionRepo:                 nftCollectionRepo,
-		UserRepo:                          userRepo,
-		PrivateKey:                        privateKey,
-		TestnetLiteClient:                 testnetLiteClient,
-		MainnetLiteClient:                 mainnetLiteClient,
-		TestnetLiteApi:                    testnetLiteApi,
-		MainnetLiteApi:                    mainnetLiteApi,
-		TestnetMarketplaceContractAddress: testnetMarketplaceContractAddress,
-		MainnetMarketplaceContractAddress: mainnetMarketplaceContractAddress,
-		NftCollectionContractCode:         nftCollectionContractCode,
-		NftItemContractCode:               nftItemContractCode,
-		Timeout:                           30 * time.Second,
+		NftCollectionRepo:         nftCollectionRepo,
+		UserRepo:                  userRepo,
+		PrivateKey:                privateKey,
+		TestnetLiteClient:         testnetLiteClient,
+		MainnetLiteClient:         mainnetLiteClient,
+		TestnetLiteApi:            testnetLiteApi,
+		MainnetLiteApi:            mainnetLiteApi,
+		TestnetWallet:             testnetWallet,
+		MainnetWallet:             mainnetWallet,
+		NftCollectionContractCode: nftCollectionContractCode,
+		NftItemContractCode:       nftItemContractCode,
+		Timeout:                   30 * time.Second,
 	})
 
 	nftCollectionServiceRepo := nftcollectionservice.New(nftcollectionservice.NftCollectionServiceCfg{
@@ -116,18 +116,18 @@ func main() {
 	})
 
 	mintNftItemServiceRepo := mintnftitem.New(mintnftitem.MintNftItemServiceCfg{
-		NftCollectionRepo:                 nftCollectionRepo,
-		NftItemRepo:                       nftItemRepo,
-		UserRepo:                          userRepo,
-		NftItemCode:                       nftItemContractCode,
-		TestnetLiteClient:                 testnetLiteClient,
-		MainnetLiteClient:                 mainnetLiteClient,
-		TestnetLiteApi:                    testnetLiteApi,
-		MainnetLiteApi:                    mainnetLiteApi,
-		TestnetMarketplaceContractAddress: testnetMarketplaceContractAddress,
-		MainnetMarketplaceContractAddress: mainnetMarketplaceContractAddress,
-		PrivateKey:                        privateKey,
-		Timeout:                           30 * time.Second,
+		NftCollectionRepo: nftCollectionRepo,
+		NftItemRepo:       nftItemRepo,
+		UserRepo:          userRepo,
+		NftItemCode:       nftItemContractCode,
+		TestnetLiteClient: testnetLiteClient,
+		MainnetLiteClient: mainnetLiteClient,
+		TestnetLiteApi:    testnetLiteApi,
+		MainnetLiteApi:    mainnetLiteApi,
+		TestnetWallet:     testnetWallet,
+		MainnetWallet:     mainnetWallet,
+		PrivateKey:        privateKey,
+		Timeout:           30 * time.Second,
 	})
 
 	marketplaceContractServiceRepo := marketplacecontractservice.New(marketplacecontractservice.MarketplaceContractServiceCfg{
@@ -145,29 +145,29 @@ func main() {
 	})
 
 	withdrawNftCollectionServiceRepo := withdrawnftcollection.New(withdrawnftcollection.WithdrawNftCollectionServiceCfg{
-		NftCollectionRepo:                 nftCollectionRepo,
-		UserRepo:                          userRepo,
-		PrivateKey:                        privateKey,
-		TestnetLiteClient:                 testnetLiteClient,
-		MainnetLiteClient:                 mainnetLiteClient,
-		TestnetLiteApi:                    testnetLiteApi,
-		MainnetLiteApi:                    mainnetLiteApi,
-		TestnetMarketplaceContractAddress: testnetMarketplaceContractAddress,
-		MainnetMarketplaceContractAddress: mainnetMarketplaceContractAddress,
-		Timeout:                           30 * time.Second,
+		NftCollectionRepo: nftCollectionRepo,
+		UserRepo:          userRepo,
+		PrivateKey:        privateKey,
+		TestnetLiteClient: testnetLiteClient,
+		MainnetLiteClient: mainnetLiteClient,
+		TestnetLiteApi:    testnetLiteApi,
+		MainnetLiteApi:    mainnetLiteApi,
+		TestnetWallet:     testnetWallet,
+		MainnetWallet:     mainnetWallet,
+		Timeout:           30 * time.Second,
 	})
 
 	withdrawNftItemServiceRepo := withdrawnftitem.New(withdrawnftitem.WithdrawNftItemServiceCfg{
-		NftItemRepo:                       nftItemRepo,
-		UserRepo:                          userRepo,
-		PrivateKey:                        privateKey,
-		TestnetLiteClient:                 testnetLiteClient,
-		MainnetLiteClient:                 mainnetLiteClient,
-		TestnetLiteApi:                    testnetLiteApi,
-		MainnetLiteApi:                    mainnetLiteApi,
-		TestnetMarketplaceContractAddress: testnetMarketplaceContractAddress,
-		MainnetMarketplaceContractAddress: mainnetMarketplaceContractAddress,
-		Timeout:                           30 * time.Second,
+		NftItemRepo:       nftItemRepo,
+		UserRepo:          userRepo,
+		PrivateKey:        privateKey,
+		TestnetLiteClient: testnetLiteClient,
+		MainnetLiteClient: mainnetLiteClient,
+		TestnetLiteApi:    testnetLiteApi,
+		MainnetLiteApi:    mainnetLiteApi,
+		TestnetWallet:     testnetWallet,
+		MainnetWallet:     mainnetWallet,
+		Timeout:           30 * time.Second,
 	})
 
 	tonApiRepo := ton.NewTonApiRepo(tonapiClient, 30*time.Second)
@@ -209,7 +209,7 @@ func main() {
 	app.Use(logger.New())
 
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",//"https://rom6n.github.io",
+		AllowOrigins: "*", //"https://rom6n.github.io",
 		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 	}))

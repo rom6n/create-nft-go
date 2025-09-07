@@ -13,6 +13,7 @@ import (
 	nftcollection "github.com/rom6n/create-nft-go/internal/domain/nft_collection"
 	nftitem "github.com/rom6n/create-nft-go/internal/domain/nft_item"
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
@@ -94,7 +95,7 @@ func PackNftCollectionData(ownerAddress *address.Address, content *cell.Cell, nf
 		EndCell()
 }
 
-func PackDeployNftItemMessage(nftCcollectionAddress *address.Address, nextItemIndex uint64, cfg nftitem.MintNftItemCfg) *cell.Cell {
+func PackDeployNftItemMessage(nftCollectionAddress *address.Address, nextItemIndex uint64, cfg nftitem.MintNftItemCfg) *tlb.InternalMessage {
 	cfg.Content = strings.TrimPrefix(cfg.Content, "https://")
 	content := cell.BeginCell().MustStoreStringSnake(cfg.Content).EndCell()
 	amount := uint64(70000000)
@@ -119,27 +120,29 @@ func PackDeployNftItemMessage(nftCcollectionAddress *address.Address, nextItemIn
 		}
 	}
 
-	return cell.BeginCell().
-		MustStoreUInt(0x10, 6).
-		MustStoreAddr(nftCcollectionAddress).
-		MustStoreCoins(amount).
-		MustStoreUInt(0, 1+4+4+64+32+1+1).
-		MustStoreUInt(1, 32).
-		MustStoreUInt(0, 64).
-		MustStoreUInt(nextItemIndex, 64).
-		MustStoreCoins(amount - 10000000). // -0.01 TON
-		MustStoreRef(initContent.EndCell()).
-		EndCell()
+	return &tlb.InternalMessage{
+		Bounce:  true,
+		Amount:  tlb.MustFromTON("0.07"),
+		DstAddr: nftCollectionAddress,
+		Body: cell.BeginCell().
+			MustStoreUInt(1, 32).
+			MustStoreUInt(0, 64).
+			MustStoreUInt(nextItemIndex, 64).
+			MustStoreCoins(amount - 10000000). // -0.01 TON
+			MustStoreRef(initContent.EndCell()).
+			EndCell(),
+	}
 }
 
-func PackChangeOwnerMsg(newOwner *address.Address, nftCollectionAddress *address.Address) *cell.Cell {
-	return cell.BeginCell().
-		MustStoreUInt(0x10, 6).
-		MustStoreAddr(nftCollectionAddress).
-		MustStoreCoins(10000000).
-		MustStoreUInt(0, 1+4+4+64+32+1+1).
-		MustStoreUInt(3, 32).
-		MustStoreUInt(5235, 64). 
-		MustStoreAddr(newOwner).
-		EndCell()
+func PackChangeOwnerMsg(newOwner *address.Address, nftCollectionAddress *address.Address) *tlb.InternalMessage {
+	return &tlb.InternalMessage{
+		Bounce:  true,
+		Amount:  tlb.MustFromTON("0.01"),
+		DstAddr: nftCollectionAddress,
+		Body: cell.BeginCell().
+			MustStoreUInt(3, 32).
+			MustStoreUInt(5235, 64).
+			MustStoreAddr(newOwner).
+			EndCell(),
+	}
 }

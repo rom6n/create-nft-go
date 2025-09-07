@@ -2,11 +2,16 @@ package generalcontractutils
 
 import (
 	"github.com/xssnick/tonutils-go/address"
+	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 )
 
-func CalculateAddress(workchain int32, stateInit *cell.Cell) *address.Address {
-	address := address.NewAddress(4, 0, stateInit.Hash())
+func CalculateAddress(workchain int32, stateInit *tlb.StateInit) *address.Address {
+	address := address.NewAddress(4, 0, cell.BeginCell().
+		MustStoreUInt(6, 5).
+		MustStoreRef(stateInit.Code).
+		MustStoreRef(stateInit.Data).
+		EndCell().Hash())
 	/*addressSlice := cell.BeginCell().
 	MustStoreUInt(4, 3).
 	MustStoreInt(int64(workchain), 8).
@@ -15,12 +20,11 @@ func CalculateAddress(workchain int32, stateInit *cell.Cell) *address.Address {
 	return address
 }
 
-func PackStateInit(codeCell *cell.Cell, dataCell *cell.Cell) *cell.Cell {
-	return cell.BeginCell().
-		MustStoreUInt(6, 5).
-		MustStoreRef(codeCell).
-		MustStoreRef(dataCell).
-		EndCell()
+func PackStateInit(codeCell *cell.Cell, dataCell *cell.Cell) *tlb.StateInit {
+	return &tlb.StateInit{
+		Code: codeCell,
+		Data: dataCell,
+	}
 }
 
 func PackDefaultMessage(toAddress *address.Address, amount uint64, text ...string) *cell.Cell {
@@ -44,13 +48,13 @@ func PackDefaultMessage(toAddress *address.Address, amount uint64, text ...strin
 	return msgBuilder.EndCell()
 }
 
-func PackDeployMessage(toAddress *address.Address, stateInit *cell.Cell) *cell.Cell {
-	return cell.BeginCell().
-		MustStoreUInt(0x18, 6).
-		MustStoreAddr(toAddress).
-		MustStoreCoins(50000000).
-		MustStoreUInt(4+2+1, 1+4+4+64+32+1+1+1).
-		MustStoreRef(stateInit).
-		MustStoreRef(cell.BeginCell().EndCell()).
-		EndCell()
+func PackDeployMessage(toAddress *address.Address, stateInit *tlb.StateInit) *tlb.InternalMessage {
+	return &tlb.InternalMessage{
+		Bounce:    true,
+		Amount:    tlb.MustFromTON("0.05"),
+		DstAddr:   toAddress,
+		StateInit: stateInit,
+		Body:      cell.BeginCell().EndCell(),
+	}
+
 }

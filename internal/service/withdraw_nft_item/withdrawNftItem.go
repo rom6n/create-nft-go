@@ -9,13 +9,12 @@ import (
 
 	nftitem "github.com/rom6n/create-nft-go/internal/domain/nft_item"
 	"github.com/rom6n/create-nft-go/internal/domain/user"
-	marketutils "github.com/rom6n/create-nft-go/internal/utils/contract_utils/market_utils"
 	nftitemutils "github.com/rom6n/create-nft-go/internal/utils/contract_utils/nft_item_utils"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/liteclient"
-	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/nft"
+	"github.com/xssnick/tonutils-go/ton/wallet"
 )
 
 type WithdrawNftItemServiceRepository interface {
@@ -23,29 +22,29 @@ type WithdrawNftItemServiceRepository interface {
 }
 
 type withdrawNftItemServiceRepo struct {
-	nftItemRepo                       nftitem.NftItemRepository
-	userRepo                          user.UserRepository
-	privateKey                        ed25519.PrivateKey
-	testnetLiteClient                 *liteclient.ConnectionPool
-	mainnetLiteClient                 *liteclient.ConnectionPool
-	testnetLiteApi                    ton.APIClientWrapped
-	mainnetLiteApi                    ton.APIClientWrapped
-	testnetMarketplaceContractAddress *address.Address
-	mainnetMarketplaceContractAddress *address.Address
-	timeout                           time.Duration
+	nftItemRepo       nftitem.NftItemRepository
+	userRepo          user.UserRepository
+	privateKey        ed25519.PrivateKey
+	testnetLiteClient *liteclient.ConnectionPool
+	mainnetLiteClient *liteclient.ConnectionPool
+	testnetLiteApi    ton.APIClientWrapped
+	mainnetLiteApi    ton.APIClientWrapped
+	testnetWallet     *wallet.Wallet
+	mainnetWallet     *wallet.Wallet
+	timeout           time.Duration
 }
 
 type WithdrawNftItemServiceCfg struct {
-	NftItemRepo                       nftitem.NftItemRepository
-	UserRepo                          user.UserRepository
-	PrivateKey                        ed25519.PrivateKey
-	TestnetLiteClient                 *liteclient.ConnectionPool
-	MainnetLiteClient                 *liteclient.ConnectionPool
-	MainnetLiteApi                    ton.APIClientWrapped
-	TestnetLiteApi                    ton.APIClientWrapped
-	TestnetMarketplaceContractAddress *address.Address
-	MainnetMarketplaceContractAddress *address.Address
-	Timeout                           time.Duration
+	NftItemRepo       nftitem.NftItemRepository
+	UserRepo          user.UserRepository
+	PrivateKey        ed25519.PrivateKey
+	TestnetLiteClient *liteclient.ConnectionPool
+	MainnetLiteClient *liteclient.ConnectionPool
+	MainnetLiteApi    ton.APIClientWrapped
+	TestnetLiteApi    ton.APIClientWrapped
+	TestnetWallet     *wallet.Wallet
+	MainnetWallet     *wallet.Wallet
+	Timeout           time.Duration
 }
 
 func New(cfg WithdrawNftItemServiceCfg) WithdrawNftItemServiceRepository {
@@ -57,8 +56,8 @@ func New(cfg WithdrawNftItemServiceCfg) WithdrawNftItemServiceRepository {
 		cfg.MainnetLiteClient,
 		cfg.TestnetLiteApi,
 		cfg.MainnetLiteApi,
-		cfg.TestnetMarketplaceContractAddress,
-		cfg.MainnetMarketplaceContractAddress,
+		cfg.TestnetWallet,
+		cfg.MainnetWallet,
 		cfg.Timeout,
 	}
 }
@@ -71,15 +70,17 @@ func (v *withdrawNftItemServiceRepo) WithdrawNftItem(ctx context.Context, nftIte
 	svcCtx, cancel := v.getContext(ctx)
 	defer cancel()
 
-	nanoTonForWithdraw := uint64(50000000)
+	nanoTonForWithdraw := uint64(30000000)
 
 	client := v.testnetLiteClient
 	api := v.testnetLiteApi
-	marketplaceContractAddress := v.testnetMarketplaceContractAddress
+	walletAddress := v.testnetWallet.WalletAddress()
+	w := v.testnetWallet
 	if !isTestnet {
 		client = v.mainnetLiteClient
 		api = v.mainnetLiteApi
-		marketplaceContractAddress = v.mainnetMarketplaceContractAddress
+		walletAddress = v.mainnetWallet.WalletAddress()
+		w = v.mainnetWallet
 	}
 
 	apiCtx := client.StickyContext(svcCtx)
@@ -102,42 +103,33 @@ func (v *withdrawNftItemServiceRepo) WithdrawNftItem(ctx context.Context, nftIte
 		return fmt.Errorf("user must be an item's owner to withdraw it")
 	}
 
+	block, blockErr := api.GetMasterchainInfo(apiCtx)
+	if blockErr != nil {
+		return fmt.Errorf("error getting masterchain info: %v", blockErr)
+	}
+
 	nftItemClient := nft.NewItemClient(api, nftItemAddress)
-	nftItemData, methodErr := nftItemClient.GetNFTData(apiCtx)
+	nftItemData, methodErr := nftItemClient.GetNFTDataAtBlock(apiCtx, block)
 	if methodErr != nil {
 		return fmt.Errorf("nft item get data method error: %v", methodErr)
 	}
 
-	if !marketplaceContractAddress.Equals(nftItemData.OwnerAddress) {
+	if !walletAddress.Equals(nftItemData.OwnerAddress) {
 		return fmt.Errorf("marketplace contract must be an nft item's owner to withdraw nft item")
 	}
 
-	block, _ := api.GetMasterchainInfo(apiCtx)
-
-	result, methodErr := api.WaitForBlock(block.SeqNo).RunGetMethod(apiCtx, block, marketplaceContractAddress, "seqno")
-	if methodErr != nil {
-		return fmt.Errorf("marketplace contract seqno method error: %v", methodErr)
-	}
-
-	seqno, seqnoErr := result.Int(0)
-	if seqnoErr != nil {
-		return fmt.Errorf("marketplace contract returned not a seqno")
-	}
-
-	msgToSend := nftitemutils.PackChangeOwnerMsg(withdrawToAddress, marketplaceContractAddress, nftItemAddress)
-
-	msgToMarketplace := marketutils.PackMessageToMarketplaceContract(v.privateKey, time.Now().Add(1*time.Minute).Unix(), seqno, 0, msgToSend)
+	changeOwnerMsg := nftitemutils.PackChangeOwnerMsg(withdrawToAddress, walletAddress, nftItemAddress)
 
 	if updErr := v.userRepo.UpdateUserBalance(svcCtx, ownerAccount.UUID, ownerAccount.NanoTon-nanoTonForWithdraw); updErr != nil {
 		return fmt.Errorf("error reducing user's balance: %v", updErr)
 	}
 
-	msg := &tlb.ExternalMessage{
-		DstAddr: marketplaceContractAddress,
-		Body:    msgToMarketplace,
+	msg := &wallet.Message{
+		Mode:            0,
+		InternalMessage: changeOwnerMsg,
 	}
 
-	if msgErr := api.SendExternalMessage(apiCtx, msg); msgErr != nil {
+	if msgErr := w.Send(apiCtx, msg, true); msgErr != nil {
 		for i := 0; i < 10; i++ {
 			if updErr := v.userRepo.UpdateUserBalance(svcCtx, ownerAccount.UUID, ownerAccount.NanoTon); updErr == nil {
 				break

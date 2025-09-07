@@ -9,13 +9,12 @@ import (
 
 	nftcollection "github.com/rom6n/create-nft-go/internal/domain/nft_collection"
 	"github.com/rom6n/create-nft-go/internal/domain/user"
-	marketutils "github.com/rom6n/create-nft-go/internal/utils/contract_utils/market_utils"
 	nftcollectionutils "github.com/rom6n/create-nft-go/internal/utils/contract_utils/nft_collection_utils"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/liteclient"
-	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	"github.com/xssnick/tonutils-go/ton/nft"
+	"github.com/xssnick/tonutils-go/ton/wallet"
 )
 
 type WithdrawNftCollectionServiceRepository interface {
@@ -23,29 +22,29 @@ type WithdrawNftCollectionServiceRepository interface {
 }
 
 type withdrawNftCollectionServiceRepo struct {
-	nftCollectionRepo                 nftcollection.NftCollectionRepository
-	userRepo                          user.UserRepository
-	privateKey                        ed25519.PrivateKey
-	testnetLiteClient                 *liteclient.ConnectionPool
-	mainnetLiteClient                 *liteclient.ConnectionPool
-	testnetLiteApi                    ton.APIClientWrapped
-	mainnetLiteApi                    ton.APIClientWrapped
-	testnetMarketplaceContractAddress *address.Address
-	mainnetMarketplaceContractAddress *address.Address
-	timeout                           time.Duration
+	nftCollectionRepo nftcollection.NftCollectionRepository
+	userRepo          user.UserRepository
+	privateKey        ed25519.PrivateKey
+	testnetLiteClient *liteclient.ConnectionPool
+	mainnetLiteClient *liteclient.ConnectionPool
+	testnetLiteApi    ton.APIClientWrapped
+	mainnetLiteApi    ton.APIClientWrapped
+	testnetWallet     *wallet.Wallet
+	mainnetWallet     *wallet.Wallet
+	timeout           time.Duration
 }
 
 type WithdrawNftCollectionServiceCfg struct {
-	NftCollectionRepo                 nftcollection.NftCollectionRepository
-	UserRepo                          user.UserRepository
-	PrivateKey                        ed25519.PrivateKey
-	TestnetLiteClient                 *liteclient.ConnectionPool
-	MainnetLiteClient                 *liteclient.ConnectionPool
-	MainnetLiteApi                    ton.APIClientWrapped
-	TestnetLiteApi                    ton.APIClientWrapped
-	TestnetMarketplaceContractAddress *address.Address
-	MainnetMarketplaceContractAddress *address.Address
-	Timeout                           time.Duration
+	NftCollectionRepo nftcollection.NftCollectionRepository
+	UserRepo          user.UserRepository
+	PrivateKey        ed25519.PrivateKey
+	TestnetLiteClient *liteclient.ConnectionPool
+	MainnetLiteClient *liteclient.ConnectionPool
+	MainnetLiteApi    ton.APIClientWrapped
+	TestnetLiteApi    ton.APIClientWrapped
+	TestnetWallet     *wallet.Wallet
+	MainnetWallet     *wallet.Wallet
+	Timeout           time.Duration
 }
 
 func New(cfg WithdrawNftCollectionServiceCfg) WithdrawNftCollectionServiceRepository {
@@ -57,8 +56,8 @@ func New(cfg WithdrawNftCollectionServiceCfg) WithdrawNftCollectionServiceReposi
 		cfg.MainnetLiteClient,
 		cfg.TestnetLiteApi,
 		cfg.MainnetLiteApi,
-		cfg.TestnetMarketplaceContractAddress,
-		cfg.MainnetMarketplaceContractAddress,
+		cfg.TestnetWallet,
+		cfg.MainnetWallet,
 		cfg.Timeout,
 	}
 }
@@ -75,11 +74,13 @@ func (v *withdrawNftCollectionServiceRepo) WithdrawNftCollection(ctx context.Con
 
 	client := v.testnetLiteClient
 	api := v.testnetLiteApi
-	marketplaceContractAddress := v.testnetMarketplaceContractAddress
+	walletAddress := v.testnetWallet.WalletAddress()
+	w := v.testnetWallet
 	if !isTestnet {
 		client = v.mainnetLiteClient
 		api = v.mainnetLiteApi
-		marketplaceContractAddress = v.mainnetMarketplaceContractAddress
+		walletAddress = v.mainnetWallet.WalletAddress()
+		w = v.mainnetWallet
 	}
 
 	apiCtx := client.StickyContext(svcCtx)
@@ -102,42 +103,34 @@ func (v *withdrawNftCollectionServiceRepo) WithdrawNftCollection(ctx context.Con
 		return fmt.Errorf("user must be an collection's owner to withdraw it")
 	}
 
+	block, blockErr := api.GetMasterchainInfo(apiCtx)
+	if blockErr != nil {
+		return fmt.Errorf("error getting masterchain info: %v", blockErr)
+	}
+
 	collectionClient := nft.NewCollectionClient(api, nftCollectionAddress)
-	collectionData, methodErr := collectionClient.GetCollectionData(apiCtx)
+	collectionData, methodErr := collectionClient.GetCollectionDataAtBlock(apiCtx, block)
 	if methodErr != nil {
 		return fmt.Errorf("nft collection get data method error: %v", methodErr)
 	}
 
-	if !marketplaceContractAddress.Equals(collectionData.OwnerAddress) {
+	// check if wallet is an owner of nft collection
+	if !walletAddress.Equals(collectionData.OwnerAddress) {
 		return fmt.Errorf("marketplace contract must be an nft collection's owner to withdraw nft collection")
 	}
 
-	block, _ := api.GetMasterchainInfo(apiCtx)
-
-	result, methodErr := api.WaitForBlock(block.SeqNo).RunGetMethod(apiCtx, block, marketplaceContractAddress, "seqno")
-	if methodErr != nil {
-		return fmt.Errorf("marketplace contract seqno method error: %v", methodErr)
-	}
-
-	seqno, seqnoErr := result.Int(0)
-	if seqnoErr != nil {
-		return fmt.Errorf("marketplace contract returned not a seqno")
-	}
-
-	msgToSend := nftcollectionutils.PackChangeOwnerMsg(withdrawToAddress, nftCollectionAddress)
-
-	msgToMarketplace := marketutils.PackMessageToMarketplaceContract(v.privateKey, time.Now().Add(1*time.Minute).Unix(), seqno, 0, msgToSend)
+	changeOwnerMsg := nftcollectionutils.PackChangeOwnerMsg(withdrawToAddress, nftCollectionAddress)
 
 	if updErr := v.userRepo.UpdateUserBalance(svcCtx, ownerAccount.UUID, ownerAccount.NanoTon-nanoTonForWithdraw); updErr != nil {
 		return fmt.Errorf("error reducing user's balance: %v", updErr)
 	}
 
-	msg := &tlb.ExternalMessage{
-		DstAddr: marketplaceContractAddress,
-		Body:    msgToMarketplace,
+	msg := &wallet.Message{
+		Mode:            0,
+		InternalMessage: changeOwnerMsg,
 	}
 
-	if msgErr := api.SendExternalMessage(apiCtx, msg); msgErr != nil {
+	if msgErr := w.Send(apiCtx, msg, true); msgErr != nil {
 		for i := 0; i < 10; i++ {
 			if updErr := v.userRepo.UpdateUserBalance(svcCtx, ownerAccount.UUID, ownerAccount.NanoTon); updErr == nil {
 				break

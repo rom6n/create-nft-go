@@ -79,7 +79,7 @@ func GetPrivateKey() ed25519.PrivateKey {
 	seed := make([]byte, 32)
 	copy(seed, []byte(seedStr))
 
-	private := ed25519.NewKeyFromSeed([]byte(seed))
+	private := ed25519.NewKeyFromSeed(seed)
 
 	return private
 }

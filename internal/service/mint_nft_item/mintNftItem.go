@@ -11,14 +11,13 @@ import (
 	nft "github.com/rom6n/create-nft-go/internal/domain/nft_item"
 	"github.com/rom6n/create-nft-go/internal/domain/user"
 	generalcontractutils "github.com/rom6n/create-nft-go/internal/utils/contract_utils/general_contract_utils"
-	marketutils "github.com/rom6n/create-nft-go/internal/utils/contract_utils/market_utils"
 	nftcollectionutils "github.com/rom6n/create-nft-go/internal/utils/contract_utils/nft_collection_utils"
 	nftitemutils "github.com/rom6n/create-nft-go/internal/utils/contract_utils/nft_item_utils"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/liteclient"
-	"github.com/xssnick/tonutils-go/tlb"
 	"github.com/xssnick/tonutils-go/ton"
 	tonnft "github.com/xssnick/tonutils-go/ton/nft"
+	"github.com/xssnick/tonutils-go/ton/wallet"
 	"github.com/xssnick/tonutils-go/tvm/cell"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 )
@@ -28,49 +27,49 @@ type MintNftItemServiceRepository interface {
 }
 
 type mintNftItemServiceRepo struct {
-	nftCollectionRepo                 nftcollection.NftCollectionRepository
-	nftItemRepo                       nft.NftItemRepository
-	userRepo                          user.UserRepository
-	nftItemCode                       *cell.Cell
-	testnetLiteClient                 *liteclient.ConnectionPool
-	mainnetLiteClient                 *liteclient.ConnectionPool
-	testnetLiteApi                    ton.APIClientWrapped
-	mainnetLiteApi                    ton.APIClientWrapped
-	testnetMarketplaceContractAddress *address.Address
-	mainnetMarketplaceContractAddress *address.Address
-	privateKey                        ed25519.PrivateKey
-	timeout                           time.Duration
+	nftCollectionRepo nftcollection.NftCollectionRepository
+	nftItemRepo       nft.NftItemRepository
+	userRepo          user.UserRepository
+	nftItemCode       *cell.Cell
+	testnetLiteClient *liteclient.ConnectionPool
+	mainnetLiteClient *liteclient.ConnectionPool
+	testnetLiteApi    ton.APIClientWrapped
+	mainnetLiteApi    ton.APIClientWrapped
+	testnetWallet     *wallet.Wallet
+	mainnetWallet     *wallet.Wallet
+	privateKey        ed25519.PrivateKey
+	timeout           time.Duration
 }
 
 type MintNftItemServiceCfg struct {
-	NftCollectionRepo                 nftcollection.NftCollectionRepository
-	NftItemRepo                       nft.NftItemRepository
-	UserRepo                          user.UserRepository
-	NftItemCode                       *cell.Cell
-	TestnetLiteClient                 *liteclient.ConnectionPool
-	MainnetLiteClient                 *liteclient.ConnectionPool
-	TestnetLiteApi                    ton.APIClientWrapped
-	MainnetLiteApi                    ton.APIClientWrapped
-	TestnetMarketplaceContractAddress *address.Address
-	MainnetMarketplaceContractAddress *address.Address
-	PrivateKey                        ed25519.PrivateKey
-	Timeout                           time.Duration
+	NftCollectionRepo nftcollection.NftCollectionRepository
+	NftItemRepo       nft.NftItemRepository
+	UserRepo          user.UserRepository
+	NftItemCode       *cell.Cell
+	TestnetLiteClient *liteclient.ConnectionPool
+	MainnetLiteClient *liteclient.ConnectionPool
+	TestnetLiteApi    ton.APIClientWrapped
+	MainnetLiteApi    ton.APIClientWrapped
+	TestnetWallet     *wallet.Wallet
+	MainnetWallet     *wallet.Wallet
+	PrivateKey        ed25519.PrivateKey
+	Timeout           time.Duration
 }
 
 func New(cfg MintNftItemServiceCfg) MintNftItemServiceRepository {
 	return &mintNftItemServiceRepo{
-		nftCollectionRepo:                 cfg.NftCollectionRepo,
-		nftItemRepo:                       cfg.NftItemRepo,
-		userRepo:                          cfg.UserRepo,
-		nftItemCode:                       cfg.NftItemCode,
-		testnetLiteClient:                 cfg.TestnetLiteClient,
-		mainnetLiteClient:                 cfg.MainnetLiteClient,
-		testnetLiteApi:                    cfg.TestnetLiteApi,
-		mainnetLiteApi:                    cfg.MainnetLiteApi,
-		testnetMarketplaceContractAddress: cfg.TestnetMarketplaceContractAddress,
-		mainnetMarketplaceContractAddress: cfg.MainnetMarketplaceContractAddress,
-		privateKey:                        cfg.PrivateKey,
-		timeout:                           cfg.Timeout,
+		nftCollectionRepo: cfg.NftCollectionRepo,
+		nftItemRepo:       cfg.NftItemRepo,
+		userRepo:          cfg.UserRepo,
+		nftItemCode:       cfg.NftItemCode,
+		testnetLiteClient: cfg.TestnetLiteClient,
+		mainnetLiteClient: cfg.MainnetLiteClient,
+		testnetLiteApi:    cfg.TestnetLiteApi,
+		mainnetLiteApi:    cfg.MainnetLiteApi,
+		testnetWallet:     cfg.TestnetWallet,
+		mainnetWallet:     cfg.MainnetWallet,
+		privateKey:        cfg.PrivateKey,
+		timeout:           cfg.Timeout,
 	}
 }
 
@@ -90,7 +89,8 @@ func (v *mintNftItemServiceRepo) MintNftItem(ctx context.Context, nftCollectionA
 
 	client := v.testnetLiteClient
 	api := v.testnetLiteApi
-	marketplaceContractAddress := v.testnetMarketplaceContractAddress
+	walletAddress := v.testnetWallet.WalletAddress()
+	w := v.testnetWallet
 
 	nftCollectionAddress.SetTestnetOnly(isTestnet)
 
@@ -105,7 +105,8 @@ func (v *mintNftItemServiceRepo) MintNftItem(ctx context.Context, nftCollectionA
 	if !isTestnet {
 		client = v.mainnetLiteClient
 		api = v.mainnetLiteApi
-		marketplaceContractAddress = v.mainnetMarketplaceContractAddress
+		walletAddress = v.mainnetWallet.WalletAddress()
+		w = v.mainnetWallet
 	}
 
 	apiCtx := client.StickyContext(svcCtx)
@@ -122,7 +123,7 @@ func (v *mintNftItemServiceRepo) MintNftItem(ctx context.Context, nftCollectionA
 	}
 
 	if cfg.OwnerAddress == nil {
-		cfg.OwnerAddress = marketplaceContractAddress
+		cfg.OwnerAddress = walletAddress
 	}
 
 	block, bErr := api.GetMasterchainInfo(apiCtx)
@@ -130,21 +131,10 @@ func (v *mintNftItemServiceRepo) MintNftItem(ctx context.Context, nftCollectionA
 		return nil, fmt.Errorf("error getting masterchain info: %v", bErr)
 	}
 
-	response, responseErr := api.WaitForBlock(block.SeqNo).RunGetMethod(apiCtx, block, marketplaceContractAddress, "seqno")
-	if responseErr != nil {
-		return nil, fmt.Errorf("error getting marketplace contract seqno: %v", responseErr)
-	}
-
 	collectionClient := tonnft.NewCollectionClient(api, nftCollectionAddress)
 	collectionData, dataErr := collectionClient.GetCollectionDataAtBlock(apiCtx, block)
 	if dataErr != nil {
 		return nil, fmt.Errorf("fail getting nft collection data method: %v", dataErr)
-	}
-
-
-	seqno, seqnoErr := response.Int(0)
-	if seqnoErr != nil {
-		return nil, fmt.Errorf("marketplace method seqno returned not a seqno: %v", seqnoErr)
 	}
 
 	nextItemIndex := collectionData.NextItemIndex
@@ -167,7 +157,7 @@ func (v *mintNftItemServiceRepo) MintNftItem(ctx context.Context, nftCollectionA
 	nftCollectionOwnerAddress := collectionData.OwnerAddress
 
 	// checking for market contract is nft collection owner
-	if !nftCollectionOwnerAddress.Equals(marketplaceContractAddress) {
+	if !nftCollectionOwnerAddress.Equals(walletAddress) {
 		return nil, fmt.Errorf("marketplace contract must be an nft collection's owner to mint nft item")
 	}
 
@@ -182,8 +172,6 @@ func (v *mintNftItemServiceRepo) MintNftItem(ctx context.Context, nftCollectionA
 	}
 
 	deployNftItemMsg := nftcollectionutils.PackDeployNftItemMessage(nftCollectionAddress, nextItemIndex.Uint64(), cfg)
-
-	marketplaceContractMsg := marketutils.PackMessageToMarketplaceContract(v.privateKey, time.Now().Add(1*time.Minute).Unix(), seqno, 1, deployNftItemMsg)
 
 	stateInit := generalcontractutils.PackStateInit(v.nftItemCode,
 		cell.BeginCell().
@@ -211,12 +199,12 @@ func (v *mintNftItemServiceRepo) MintNftItem(ctx context.Context, nftCollectionA
 		return nil, fmt.Errorf("error reducing user's balance for nft item mint: %v", updErr)
 	}
 
-	msg := &tlb.ExternalMessage{
-		DstAddr: marketplaceContractAddress,
-		Body:    marketplaceContractMsg,
+	msg := &wallet.Message{
+		Mode:            1,
+		InternalMessage: deployNftItemMsg,
 	}
 
-	msgErr := api.SendExternalMessage(apiCtx, msg)
+	msgErr := w.Send(apiCtx, msg, true)
 	if msgErr != nil {
 		// FIY: not enough balance on contract
 		for i := 0; i < 10; i++ {
@@ -233,7 +221,7 @@ func (v *mintNftItemServiceRepo) MintNftItem(ctx context.Context, nftCollectionA
 		return nil, fmt.Errorf("error sending mint nft item by external message: %v", msgErr)
 	}
 
-	if cfg.OwnerAddress.Equals(marketplaceContractAddress) {
+	if cfg.OwnerAddress.Equals(walletAddress) {
 		for i := 0; i < 10; i++ {
 			if createErr := v.nftItemRepo.CreateNftItem(svcCtx, nftItem); createErr == nil {
 				break
