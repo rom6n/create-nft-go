@@ -52,8 +52,11 @@ func main() {
 	nftItemContractCode := nftitemutils.GetNftItemContractCode()
 	marketplaceContractCode := marketutils.GetMarketplaceContractCode()
 	tonapiClient := ton.NewTonapiClient()
+	//testnetTonapiClient := ton.NewTestnetTonapiClient()
 	testnetWallet := tonutil.GetTestnetWallet(testnetLiteApi)
 	mainnetWallet := tonutil.GetMainnetWallet(mainnetLiteApi)
+	//streamingApi := tonutil.GetStreamingApi()
+	//testnetStreamingApi := tonutil.GetTestnetStreamingApi()
 
 	databaseClient := storage.NewMongoClient()
 	defer databaseClient.Disconnect(ctx)
@@ -201,7 +204,10 @@ func main() {
 
 	// ------------------------------- App & Routes --------------------------------------
 
-	app := fiber.New(fiber.Config{
+	go tonutil.ListenDeposits(ctx, testnetLiteApi, userRepo)
+	//go tonutil.ListenDeposits(ctx, streamingApi, tonapiClient, userRepo)
+
+	app := fiber.New(fiber.Config{	
 		JSONEncoder: json.Marshal,
 		JSONDecoder: json.Unmarshal,
 	})

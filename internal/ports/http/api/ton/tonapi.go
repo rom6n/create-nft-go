@@ -38,6 +38,20 @@ func NewTonapiClient() *tonapi.Client {
 	return client
 }
 
+func NewTestnetTonapiClient() *tonapi.Client {
+	token := os.Getenv("TONAPI_TOKEN")
+	if token == "" {
+		log.Fatal("Error. Add TonApi token to env.")
+	}
+
+	client, err := tonapi.NewClient(tonapi.TestnetTonApiURL, tonapi.WithToken(token))
+	if err != nil {
+		log.Fatalf("TonApi connection error: %v\n", err)
+	}
+
+	return client
+}
+
 func NewTonApiRepo(tonapiClient *tonapi.Client, timeout time.Duration) TonApiRepository {
 	return &tonapiTonApiRepo{
 		client:  tonapiClient,
@@ -49,10 +63,6 @@ func (r *tonapiTonApiRepo) getContext(ctx context.Context) (context.Context, con
 	return context.WithTimeout(ctx, r.timeout)
 }
 
-func (r *tonapiTonApiRepo) runStreamApi(apiKey string) {
-	streamApi := tonapi.NewStreamingAPI(tonapi.WithStreamingToken(apiKey))
-	streamApi.SubscribeToTransactions(context.Background(), []string{""}, nil, nil )
-}
 
 func (r *tonapiTonApiRepo) GetWalletNftItems(ctx context.Context, walletAddress string) ([]wallet.NftItem, error) {
 	apiCtx, cancel := r.getContext(ctx)
