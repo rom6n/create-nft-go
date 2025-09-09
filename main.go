@@ -225,11 +225,19 @@ func main() {
 
 	app.Use(logger.New())
 
-	app.Get("/ping", func(c *fiber.Ctx) error {
+	app.Get("/ping", cors.New(cors.Config{
+		AllowOrigins: "*",
+		AllowMethods: "GET",
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+	}), func(c *fiber.Ctx) error {
 		return c.SendString("pong")
 	})
 
-	app.Get("/favicon.ico", func(c *fiber.Ctx) error {
+	app.Get("/favicon.ico", cors.New(cors.Config{
+		AllowOrigins: "*",
+		AllowMethods: "GET",
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+	}), func(c *fiber.Ctx) error {
 		return c.SendStatus(fiber.StatusNoContent)
 	})
 
