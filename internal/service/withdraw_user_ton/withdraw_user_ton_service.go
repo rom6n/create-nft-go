@@ -68,7 +68,12 @@ func (v *withdrawUserTonRepo) Withdraw(ctx context.Context, userID int64, amount
 	}
 
 	if user.NanoTon < amount {
-		return fmt.Errorf("Not enough balance\n")
+		return fmt.Errorf("not enough balance")
+	}
+
+	updErr := v.userRepo.UpdateUserBalance(svcCtx, user.UUID, user.NanoTon - amount)
+	if updErr != nil {
+		return fmt.Errorf("error updating user's balance 2: %w", updErr)
 	}
 
 	if transferErr := w.Transfer(apiCtx, withdrawToAddress, tlb.FromNanoTONU(amount), "Thanks for using Build NFT tma"); transferErr != nil {
@@ -76,7 +81,7 @@ func (v *withdrawUserTonRepo) Withdraw(ctx context.Context, userID int64, amount
 		if updErr != nil {
 			return fmt.Errorf("error updating user's balance 2: %w", updErr)
 		}
-		return fmt.Errorf("error withdrawing ton: %v\n", transferErr)
+		return fmt.Errorf("error withdrawing ton: %v", transferErr)
 	}
 
 	return nil

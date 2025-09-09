@@ -225,12 +225,6 @@ func main() {
 
 	app.Use(logger.New())
 
-	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowMethods: "GET",
-		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
-	}))
-
 	app.Get("/ping", func(c *fiber.Ctx) error {
 		return c.SendString("pong")
 	})
@@ -258,7 +252,12 @@ func main() {
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 	}))
 
-	walletApi.Get("/get-wallet-data", walletHandler.GetWalletData())
+	walletApi.Get("/get-wallet-data", cors.New(cors.Config{
+		AllowOrigins: "*",
+		AllowMethods: "GET",
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+	}), walletHandler.GetWalletData())
+	
 	walletApi.Post("/refresh-wallet-nft-items", cors.New(cors.Config{
 		AllowOrigins: "https://rom6n.github.io",
 		AllowMethods: "POST",
@@ -269,9 +268,24 @@ func main() {
 	marketApi.Post("/deposit", marketplaceHandler.DepositMarket())
 	marketApi.Post("/withdraw", marketplaceHandler.WithdrawTonFromMarketContract())
 
-	userApi.Get("/:id", userHandler.GetUserData())
-	userApi.Get("/nft-collections/:id", userHandler.GetUserNftCollections())
-	userApi.Get("/nft-items/:id", userHandler.GetUserNftItems())
+	userApi.Get("/:id", cors.New(cors.Config{
+		AllowOrigins: "*",
+		AllowMethods: "GET",
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+	}), userHandler.GetUserData())
+
+	userApi.Get("/nft-collections/:id", cors.New(cors.Config{
+		AllowOrigins: "*",
+		AllowMethods: "GET",
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+	}), userHandler.GetUserNftCollections())
+
+	userApi.Get("/nft-items/:id", cors.New(cors.Config{
+		AllowOrigins: "*",
+		AllowMethods: "GET",
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+	}), userHandler.GetUserNftItems())
+
 	userApi.Post("/withdraw/:id", cors.New(cors.Config{
 		AllowOrigins: "https://rom6n.github.io",
 		AllowMethods: "POST",
