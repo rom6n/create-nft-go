@@ -225,59 +225,37 @@ func main() {
 
 	app.Use(logger.New())
 
-	app.Get("/ping", cors.New(cors.Config{
+	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
-		AllowMethods: "GET",
+		AllowMethods: "GET,POST,HEAD,PUT,DELETE,PATCH",
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
-	}), func(c *fiber.Ctx) error {
+	}))
+
+	app.Get("/ping", func(c *fiber.Ctx) error {
 		return c.SendString("pong")
 	})
 
-	app.Get("/favicon.ico", cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowMethods: "GET",
-		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
-	}), func(c *fiber.Ctx) error {
+	app.Get("/favicon.ico", func(c *fiber.Ctx) error {
 		return c.SendStatus(fiber.StatusNoContent)
 	})
 
 	api := app.Group("/api")
-	walletApi := api.Group("/wallet", cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowMethods: "GET",
-		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
-	}))
+	walletApi := api.Group("/wallet")
 	userApi := api.Group("/user")
 	nftCollectionApi := api.Group("/nft-collection", StrictOriginMiddleware("https://rom6n.github.io"))
 	nftItemApi := api.Group("/nft-item", StrictOriginMiddleware("https://rom6n.github.io"))
 	marketApi := api.Group("/market", StrictOriginMiddleware("https://rom6n.github.io"))
 
 	walletApi.Get("/get-wallet-data", walletHandler.GetWalletData())
-	
 	walletApi.Post("/refresh-wallet-nft-items", walletHandler.RefreshWalletNftItems())
 
 	marketApi.Post("/deploy", marketplaceHandler.DeployMarketContract())
 	marketApi.Post("/deposit", marketplaceHandler.DepositMarket())
 	marketApi.Post("/withdraw", marketplaceHandler.WithdrawTonFromMarketContract())
 
-	userApi.Get("/:id", cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowMethods: "GET",
-		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
-	}), userHandler.GetUserData())
-
-	userApi.Get("/nft-collections/:id", cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowMethods: "GET",
-		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
-	}), userHandler.GetUserNftCollections())
-
-	userApi.Get("/nft-items/:id", cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowMethods: "GET",
-		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
-	}), userHandler.GetUserNftItems())
-
+	userApi.Get("/:id", userHandler.GetUserData())
+	userApi.Get("/nft-collections/:id", userHandler.GetUserNftCollections())
+	userApi.Get("/nft-items/:id", userHandler.GetUserNftItems())
 	userApi.Post("/withdraw/:id", StrictOriginMiddleware("https://rom6n.github.io"), userHandler.WithdrawUserTON())
 
 	nftCollectionApi.Post("/deploy", nftCollectionHandler.DeployNftCollection())              // В будущем поменять на POST
