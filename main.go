@@ -27,6 +27,7 @@ import (
 	walletservice "github.com/rom6n/create-nft-go/internal/service/wallet_service"
 	withdrawnftcollection "github.com/rom6n/create-nft-go/internal/service/withdraw_nft_collection"
 	withdrawnftitem "github.com/rom6n/create-nft-go/internal/service/withdraw_nft_item"
+	"github.com/rom6n/create-nft-go/internal/service/withdraw_user_ton"
 	"github.com/rom6n/create-nft-go/internal/storage"
 	marketutils "github.com/rom6n/create-nft-go/internal/utils/contract_utils/market_utils"
 	nftcollectionutils "github.com/rom6n/create-nft-go/internal/utils/contract_utils/nft_collection_utils"
@@ -173,6 +174,15 @@ func main() {
 		Timeout:           30 * time.Second,
 	})
 
+	withdrawUserRepo := withdraw_user_ton.New(withdraw_user_ton.WithdrawUserTonCfg{
+		UserRepo:          userRepo,
+		TestnetLiteClient: testnetLiteClient,
+		MainnetLiteClient: mainnetLiteClient,
+		TestnetWallet:     testnetWallet,
+		MainnetWallet:     mainnetWallet,
+		Timeout:           30 * time.Second,
+	})
+
 	tonApiRepo := ton.NewTonApiRepo(tonapiClient, 30*time.Second)
 
 	walletServiceRepo := walletservice.New(tonApiRepo, walletRepo)
@@ -184,7 +194,8 @@ func main() {
 	}
 
 	userHandler := handler.UserHandler{
-		UserService: userServiceRepo,
+		UserService:         userServiceRepo,
+		WithdrawUserService: withdrawUserRepo,
 	}
 
 	nftCollectionHandler := handler.NftCollectionHandler{
@@ -207,7 +218,7 @@ func main() {
 	go tonutil.ListenDeposits(ctx, testnetLiteApi, userRepo)
 	//go tonutil.ListenDeposits(ctx, streamingApi, tonapiClient, userRepo)
 
-	app := fiber.New(fiber.Config{	
+	app := fiber.New(fiber.Config{
 		JSONEncoder: json.Marshal,
 		JSONDecoder: json.Unmarshal,
 	})
@@ -215,8 +226,8 @@ func main() {
 	app.Use(logger.New())
 
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*", //"https://rom6n.github.io",
-		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
+		AllowOrigins: "*",
+		AllowMethods: "GET",
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 	}))
 
@@ -231,26 +242,47 @@ func main() {
 	api := app.Group("/api")
 	walletApi := api.Group("/wallet")
 	userApi := api.Group("/user")
-	nftCollectionApi := api.Group("/nft-collection")
-	nftItemApi := api.Group("/nft-item")
-	marketApi := api.Group("/market")
+	nftCollectionApi := api.Group("/nft-collection", cors.New(cors.Config{
+		AllowOrigins: "https://rom6n.github.io",
+		AllowMethods: "POST,GET",
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+	}))
+	nftItemApi := api.Group("/nft-item", cors.New(cors.Config{
+		AllowOrigins: "https://rom6n.github.io",
+		AllowMethods: "POST,GET",
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+	}))
+	marketApi := api.Group("/market", cors.New(cors.Config{
+		AllowOrigins: "https://rom6n.github.io",
+		AllowMethods: "GET,POST",
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+	}))
 
 	walletApi.Get("/get-wallet-data", walletHandler.GetWalletData())
-	walletApi.Get("/refresh-wallet-nft-items", walletHandler.RefreshWalletNftItems()) // В будущем поменять на PUT
+	walletApi.Post("/refresh-wallet-nft-items", cors.New(cors.Config{
+		AllowOrigins: "https://rom6n.github.io",
+		AllowMethods: "POST",
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+	}), walletHandler.RefreshWalletNftItems())
 
-	marketApi.Get("/deploy", marketplaceHandler.DeployMarketContract())            // В будущем поменять на POST
-	marketApi.Get("/deposit", marketplaceHandler.DepositMarket())                  // В будущем поменять на POST
-	marketApi.Get("/withdraw", marketplaceHandler.WithdrawTonFromMarketContract()) // В будущем поменять на POST
+	marketApi.Post("/deploy", marketplaceHandler.DeployMarketContract())
+	marketApi.Post("/deposit", marketplaceHandler.DepositMarket())
+	marketApi.Post("/withdraw", marketplaceHandler.WithdrawTonFromMarketContract())
 
 	userApi.Get("/:id", userHandler.GetUserData())
 	userApi.Get("/nft-collections/:id", userHandler.GetUserNftCollections())
 	userApi.Get("/nft-items/:id", userHandler.GetUserNftItems())
+	userApi.Post("/withdraw/:id", cors.New(cors.Config{
+		AllowOrigins: "https://rom6n.github.io",
+		AllowMethods: "POST",
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+	}), userHandler.WithdrawUserTON())
 
-	nftCollectionApi.Get("/deploy", nftCollectionHandler.DeployNftCollection())              // В будущем поменять на POST
-	nftCollectionApi.Get("/withdraw/:address", nftCollectionHandler.WithdrawNftCollection()) // В будущем поменять на POST
+	nftCollectionApi.Post("/deploy", nftCollectionHandler.DeployNftCollection())              // В будущем поменять на POST
+	nftCollectionApi.Post("/withdraw/:address", nftCollectionHandler.WithdrawNftCollection()) // В будущем поменять на POST
 
-	nftItemApi.Get("/mint", nftItemHandler.MintNftItem())                  // В будущем поменять на POST
-	nftItemApi.Get("/withdraw/:address", nftItemHandler.WithdrawNftItem()) // В будущем поменять на POST
+	nftItemApi.Post("/mint", nftItemHandler.MintNftItem())                  // В будущем поменять на POST
+	nftItemApi.Post("/withdraw/:address", nftItemHandler.WithdrawNftItem()) // В будущем поменять на POST
 
 	go func() {
 		port := os.Getenv("PORT")
