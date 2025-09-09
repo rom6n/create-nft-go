@@ -242,35 +242,19 @@ func main() {
 	})
 
 	api := app.Group("/api")
-	walletApi := api.Group("/wallet")
-	userApi := api.Group("/user")
-	nftCollectionApi := api.Group("/nft-collection", cors.New(cors.Config{
-		AllowOrigins: "https://rom6n.github.io",
-		AllowMethods: "POST,GET",
-		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
-	}))
-	nftItemApi := api.Group("/nft-item", cors.New(cors.Config{
-		AllowOrigins: "https://rom6n.github.io",
-		AllowMethods: "POST,GET",
-		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
-	}))
-	marketApi := api.Group("/market", cors.New(cors.Config{
-		AllowOrigins: "https://rom6n.github.io",
-		AllowMethods: "GET,POST",
-		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
-	}))
-
-	walletApi.Get("/get-wallet-data", cors.New(cors.Config{
+	walletApi := api.Group("/wallet", cors.New(cors.Config{
 		AllowOrigins: "*",
 		AllowMethods: "GET",
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
-	}), walletHandler.GetWalletData())
+	}))
+	userApi := api.Group("/user")
+	nftCollectionApi := api.Group("/nft-collection", StrictOriginMiddleware("https://rom6n.github.io"))
+	nftItemApi := api.Group("/nft-item", StrictOriginMiddleware("https://rom6n.github.io"))
+	marketApi := api.Group("/market", StrictOriginMiddleware("https://rom6n.github.io"))
+
+	walletApi.Get("/get-wallet-data", walletHandler.GetWalletData())
 	
-	walletApi.Post("/refresh-wallet-nft-items", cors.New(cors.Config{
-		AllowOrigins: "https://rom6n.github.io",
-		AllowMethods: "POST",
-		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
-	}), walletHandler.RefreshWalletNftItems())
+	walletApi.Post("/refresh-wallet-nft-items", walletHandler.RefreshWalletNftItems())
 
 	marketApi.Post("/deploy", marketplaceHandler.DeployMarketContract())
 	marketApi.Post("/deposit", marketplaceHandler.DepositMarket())
@@ -294,11 +278,7 @@ func main() {
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
 	}), userHandler.GetUserNftItems())
 
-	userApi.Post("/withdraw/:id", cors.New(cors.Config{
-		AllowOrigins: "https://rom6n.github.io",
-		AllowMethods: "POST",
-		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
-	}), userHandler.WithdrawUserTON())
+	userApi.Post("/withdraw/:id", StrictOriginMiddleware("https://rom6n.github.io"), userHandler.WithdrawUserTON())
 
 	nftCollectionApi.Post("/deploy", nftCollectionHandler.DeployNftCollection())              // В будущем поменять на POST
 	nftCollectionApi.Post("/withdraw/:address", nftCollectionHandler.WithdrawNftCollection()) // В будущем поменять на POST
@@ -339,4 +319,16 @@ func main() {
 	}
 
 	log.Println("✅ Server shutdown successfully")
+}
+
+func StrictOriginMiddleware(allowedOrigin string) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		origin := c.Get("Origin")
+
+		if origin != allowedOrigin {
+			return c.Status(fiber.StatusForbidden).SendString("Forbidden: invalid origin")
+		}
+
+		return c.Next()
+	}
 }
