@@ -118,7 +118,7 @@ func (v *withdrawUserTonRepo) WithdrawQueue() {
 				log.Printf("error withdrawing ton: %v", transferErr)
 				continue
 			}
-			time.Sleep(10 * time.Second)
+			time.Sleep(15 * time.Second)
 		default:
 			continue
 		}
