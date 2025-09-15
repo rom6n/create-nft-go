@@ -56,6 +56,7 @@ type WithdrawRequest struct {
 	ApiCtx            context.Context
 	WithdrawToAddress *address.Address
 	Amount            tlb.Coins
+	SvcCtx            context.Context
 	UserUUID          uuid.UUID
 	UserNanoTON       uint64
 }
@@ -95,6 +96,9 @@ func (v *withdrawUserTonRepo) Withdraw(ctx context.Context, userID int64, amount
 			Wallet:            w,
 			WithdrawToAddress: withdrawToAddress,
 			ApiCtx:            apiCtx,
+			SvcCtx:            svcCtx,
+			UserUUID:          user.UUID,
+			UserNanoTON:       user.NanoTon,
 			Amount:            tlb.FromNanoTONU(amount),
 		}
 	}()
@@ -108,7 +112,7 @@ func (v *withdrawUserTonRepo) WithdrawQueue() {
 		select {
 		case request := <-v.queueChannel:
 			if transferErr := request.Wallet.Transfer(request.ApiCtx, request.WithdrawToAddress, request.Amount, "Thanks for using Build NFT tma"); transferErr != nil {
-				updErr := v.userRepo.UpdateUserBalance(request.ApiCtx, request.UserUUID, request.UserNanoTON)
+				updErr := v.userRepo.UpdateUserBalance(request.SvcCtx, request.UserUUID, request.UserNanoTON)
 				if updErr != nil {
 					log.Printf("error updating user's balance 2: %w", updErr)
 					continue
