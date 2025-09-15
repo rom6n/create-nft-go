@@ -3,8 +3,10 @@ package withdraw_user_ton
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/rom6n/create-nft-go/internal/domain/user"
 	"github.com/xssnick/tonutils-go/address"
 	"github.com/xssnick/tonutils-go/liteclient"
@@ -14,6 +16,7 @@ import (
 
 type WithdrawUserTonRepository interface {
 	Withdraw(ctx context.Context, userID int64, amount uint64, withdrawToAddress *address.Address, isTestnet bool) error
+	WithdrawQueue()
 }
 
 type withdrawUserTonRepo struct {
@@ -22,6 +25,7 @@ type withdrawUserTonRepo struct {
 	mainnetLiteClient *liteclient.ConnectionPool
 	testnetWallet     *wallet.Wallet
 	mainnetWallet     *wallet.Wallet
+	queueChannel      chan *WithdrawRequest
 	timeout           time.Duration
 }
 
@@ -31,6 +35,7 @@ type WithdrawUserTonCfg struct {
 	MainnetLiteClient *liteclient.ConnectionPool
 	TestnetWallet     *wallet.Wallet
 	MainnetWallet     *wallet.Wallet
+	QueueChannel      chan *WithdrawRequest
 	Timeout           time.Duration
 }
 
@@ -41,8 +46,18 @@ func New(cfg WithdrawUserTonCfg) WithdrawUserTonRepository {
 		mainnetLiteClient: cfg.MainnetLiteClient,
 		testnetWallet:     cfg.TestnetWallet,
 		mainnetWallet:     cfg.MainnetWallet,
+		queueChannel:      cfg.QueueChannel,
 		timeout:           cfg.Timeout,
 	}
+}
+
+type WithdrawRequest struct {
+	Wallet            *wallet.Wallet
+	ApiCtx            context.Context
+	WithdrawToAddress *address.Address
+	Amount            tlb.Coins
+	UserUUID          uuid.UUID
+	UserNanoTON       uint64
 }
 
 func (v *withdrawUserTonRepo) getContext(ctx context.Context) (context.Context, context.CancelFunc) {
@@ -66,23 +81,44 @@ func (v *withdrawUserTonRepo) Withdraw(ctx context.Context, userID int64, amount
 	if getErr != nil {
 		return fmt.Errorf("error getting user by ID: %w", getErr)
 	}
-
 	if user.NanoTon < amount {
 		return fmt.Errorf("not enough balance")
 	}
 
-	updErr := v.userRepo.UpdateUserBalance(svcCtx, user.UUID, user.NanoTon - amount)
+	updErr := v.userRepo.UpdateUserBalance(svcCtx, user.UUID, user.NanoTon-amount)
 	if updErr != nil {
 		return fmt.Errorf("error updating user's balance 2: %w", updErr)
 	}
 
-	if transferErr := w.Transfer(apiCtx, withdrawToAddress, tlb.FromNanoTONU(amount), "Thanks for using Build NFT tma"); transferErr != nil {
-		updErr := v.userRepo.UpdateUserBalance(svcCtx, user.UUID, user.NanoTon)
-		if updErr != nil {
-			return fmt.Errorf("error updating user's balance 2: %w", updErr)
+	go func() {
+		v.queueChannel <- &WithdrawRequest{
+			Wallet:            w,
+			WithdrawToAddress: withdrawToAddress,
+			ApiCtx:            apiCtx,
+			Amount:            tlb.FromNanoTONU(amount),
 		}
-		return fmt.Errorf("error withdrawing ton: %v", transferErr)
-	}
+	}()
 
 	return nil
+}
+
+func (v *withdrawUserTonRepo) WithdrawQueue() {
+	log.Printf("Withdraw queue is running")
+	for {
+		select {
+		case request := <-v.queueChannel:
+			if transferErr := request.Wallet.Transfer(request.ApiCtx, request.WithdrawToAddress, request.Amount, "Thanks for using Build NFT tma"); transferErr != nil {
+				updErr := v.userRepo.UpdateUserBalance(request.ApiCtx, request.UserUUID, request.UserNanoTON)
+				if updErr != nil {
+					log.Printf("error updating user's balance 2: %w", updErr)
+					continue
+				}
+				log.Printf("error withdrawing ton: %v", transferErr)
+				continue
+			}
+			time.Sleep(10 * time.Second)
+		default:
+			continue
+		}
+	}
 }

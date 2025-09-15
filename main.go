@@ -180,8 +180,11 @@ func main() {
 		MainnetLiteClient: mainnetLiteClient,
 		TestnetWallet:     testnetWallet,
 		MainnetWallet:     mainnetWallet,
+		QueueChannel:      make(chan *withdraw_user_ton.WithdrawRequest),
 		Timeout:           30 * time.Second,
 	})
+
+	go withdrawUserRepo.WithdrawQueue()
 
 	tonApiRepo := ton.NewTonApiRepo(tonapiClient, 30*time.Second)
 
@@ -281,8 +284,8 @@ func main() {
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, os.Interrupt)
 
 	<-stop
-	shutdownTimeSecond := 3 * time.Second // basically 35 seconds
-	shutdownTime := 4                     // basically 40 seconds
+	shutdownTimeSecond := 35 * time.Second // basically 35 seconds
+	shutdownTime := 40                     // basically 40 seconds
 
 	ctxShutdown, cancel := context.WithTimeout(ctx, shutdownTimeSecond)
 	defer cancel()
