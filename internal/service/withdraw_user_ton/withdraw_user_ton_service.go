@@ -53,10 +53,9 @@ func New(cfg WithdrawUserTonCfg) WithdrawUserTonRepository {
 
 type WithdrawRequest struct {
 	Wallet            *wallet.Wallet
-	ApiCtx            context.Context
+	Ctx               context.Context
 	WithdrawToAddress *address.Address
 	Amount            tlb.Coins
-	SvcCtx            context.Context
 	UserUUID          uuid.UUID
 	UserNanoTON       uint64
 }
@@ -69,14 +68,14 @@ func (v *withdrawUserTonRepo) Withdraw(ctx context.Context, userID int64, amount
 	svcCtx, cancel := v.getContext(ctx)
 	defer cancel()
 
-	client := v.testnetLiteClient
+	//client := v.testnetLiteClient
 	w := v.testnetWallet
 	if !isTestnet {
 		w = v.mainnetWallet
-		client = v.mainnetLiteClient
+		//client = v.mainnetLiteClient
 	}
 
-	apiCtx := client.StickyContext(svcCtx)
+	//apiCtx := client.StickyContext(svcCtx)
 
 	user, getErr := v.userRepo.GetUserByID(ctx, userID)
 	if getErr != nil {
@@ -95,8 +94,7 @@ func (v *withdrawUserTonRepo) Withdraw(ctx context.Context, userID int64, amount
 		v.queueChannel <- &WithdrawRequest{
 			Wallet:            w,
 			WithdrawToAddress: withdrawToAddress,
-			ApiCtx:            apiCtx,
-			SvcCtx:            svcCtx,
+			Ctx:               context.Background(),
 			UserUUID:          user.UUID,
 			UserNanoTON:       user.NanoTon,
 			Amount:            tlb.FromNanoTONU(amount),
@@ -111,10 +109,10 @@ func (v *withdrawUserTonRepo) WithdrawQueue() {
 	for {
 		select {
 		case request := <-v.queueChannel:
-			if transferErr := request.Wallet.Transfer(request.ApiCtx, request.WithdrawToAddress, request.Amount, "Thanks for using Build NFT tma"); transferErr != nil {
-				updErr := v.userRepo.UpdateUserBalance(request.SvcCtx, request.UserUUID, request.UserNanoTON)
+			if transferErr := request.Wallet.Transfer(request.Ctx, request.WithdrawToAddress, request.Amount, "Thanks for using Build NFT tma"); transferErr != nil {
+				updErr := v.userRepo.UpdateUserBalance(request.Ctx, request.UserUUID, request.UserNanoTON)
 				if updErr != nil {
-					log.Printf("error updating user's balance 2: %w", updErr)
+					log.Printf("error updating user's balance 2: %v. error withdrawing ton: %v", updErr, transferErr)
 					continue
 				}
 				log.Printf("error withdrawing ton: %v", transferErr)
