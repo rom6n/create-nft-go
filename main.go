@@ -32,6 +32,7 @@ import (
 	marketutils "github.com/rom6n/create-nft-go/internal/utils/contract_utils/market_utils"
 	nftcollectionutils "github.com/rom6n/create-nft-go/internal/utils/contract_utils/nft_collection_utils"
 	nftitemutils "github.com/rom6n/create-nft-go/internal/utils/contract_utils/nft_item_utils"
+	"github.com/rom6n/create-nft-go/internal/utils/telegutils"
 	"github.com/rom6n/create-nft-go/internal/utils/tonutil"
 )
 
@@ -58,6 +59,7 @@ func main() {
 	mainnetWallet := tonutil.GetMainnetWallet(mainnetLiteApi)
 	//streamingApi := tonutil.GetStreamingApi()
 	//testnetStreamingApi := tonutil.GetTestnetStreamingApi()
+	botToken := telegutils.GetBotToken()
 
 	databaseClient := storage.NewMongoClient()
 	defer databaseClient.Disconnect(ctx)
@@ -245,9 +247,9 @@ func main() {
 	api := app.Group("/api")
 	walletApi := api.Group("/wallet")
 	userApi := api.Group("/user")
-	nftCollectionApi := api.Group("/nft-collection", StrictOriginMiddleware("https://rom6n.github.io"))
-	nftItemApi := api.Group("/nft-item", StrictOriginMiddleware("https://rom6n.github.io"))
-	marketApi := api.Group("/market", StrictOriginMiddleware("https://rom6n.github.io"))
+	nftCollectionApi := api.Group("/nft-collection", StrictOriginMiddleware("https://rom6n.github.io", botToken))
+	nftItemApi := api.Group("/nft-item", StrictOriginMiddleware("https://rom6n.github.io", botToken))
+	marketApi := api.Group("/market", StrictOriginMiddleware("https://rom6n.github.io", botToken))
 
 	walletApi.Get("/get-wallet-data", walletHandler.GetWalletData())
 	walletApi.Post("/refresh-wallet-nft-items", walletHandler.RefreshWalletNftItems())
@@ -259,7 +261,7 @@ func main() {
 	userApi.Get("/:id", userHandler.GetUserData())
 	userApi.Get("/nft-collections/:id", userHandler.GetUserNftCollections())
 	userApi.Get("/nft-items/:id", userHandler.GetUserNftItems())
-	userApi.Post("/withdraw/:id", StrictOriginMiddleware("https://rom6n.github.io"), userHandler.WithdrawUserTON())
+	userApi.Post("/withdraw/:id", StrictOriginMiddleware("https://rom6n.github.io", botToken), userHandler.WithdrawUserTON())
 
 	nftCollectionApi.Post("/deploy", nftCollectionHandler.DeployNftCollection())              // В будущем поменять на POST
 	nftCollectionApi.Post("/withdraw/:address", nftCollectionHandler.WithdrawNftCollection()) // В будущем поменять на POST
@@ -302,12 +304,20 @@ func main() {
 	log.Println("✅ Server shutdown successfully")
 }
 
-func StrictOriginMiddleware(allowedOrigin string) fiber.Handler {
+func StrictOriginMiddleware(allowedOrigin, botToken string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		origin := c.Get("Origin")
+		initData := c.Get("X-Init-Data", "")
+		if initData == "" {
+			return c.Status(fiber.StatusForbidden).SendString("Forbidden: no init data")
+		}
 
 		if origin != allowedOrigin {
 			return c.Status(fiber.StatusForbidden).SendString("Forbidden: invalid origin")
+		}
+
+		if !telegutils.VerifyTelegramInitData(initData, botToken) {
+			return c.Status(fiber.StatusForbidden).SendString("Forbidden: wrong init data")
 		}
 
 		return c.Next()

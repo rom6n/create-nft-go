@@ -8,6 +8,7 @@ require (
 	github.com/gofiber/fiber/v2 v2.52.9
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
+	github.com/telegram-mini-apps/init-data-golang v1.5.0
 	github.com/tonkeeper/tonapi-go v1.0.0
 	github.com/xssnick/tonutils-go v1.14.1
 	go.mongodb.org/mongo-driver/v2 v2.3.0
