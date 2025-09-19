@@ -309,10 +309,12 @@ func StrictOriginMiddleware(allowedOrigin, botToken string) fiber.Handler {
 		origin := c.Get("Origin")
 		initData := c.Get("X-Init-Data", "")
 		if initData == "" {
+			log.Printf("Error: No X-Init-Data header \n")
 			return c.Status(fiber.StatusForbidden).SendString("Forbidden: no init data")
 		}
 
 		if origin != allowedOrigin {
+			log.Printf("Error: Not supported origin \n")
 			return c.Status(fiber.StatusForbidden).SendString("Forbidden: invalid origin")
 		}
 
